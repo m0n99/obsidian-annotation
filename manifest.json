@@ -1,0 +1,10 @@
+{
+	"id": "annotation",
+	"name": "Annotation",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "Document-first visual annotation view for the active Obsidian note.",
+	"author": "m0n99",
+	"authorUrl": "https://github.com/m0n99",
+	"isDesktopOnly": false
+}

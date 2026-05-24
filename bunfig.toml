@@ -1,0 +1,23 @@
+telemetry = false
+logLevel = "debug"
+
+[console]
+depth = 2
+
+[install]
+auto = "auto"
+exact = true
+optional = true
+minimumReleaseAge = 259200
+minimumReleaseAgeExcludes = ["@types/bun", "typescript"]
+
+[run]
+bun = true
+
+[test]
+coverage = false
+onlyFailures = true
+preload = ["./src/test-setup.ts"]
+
+[test.reporter]
+dots = true

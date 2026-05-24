@@ -1,0 +1,860 @@
+.annotation-active-markdown-view {
+	position: relative;
+
+	/* Excalidraw-compatible design tokens */
+	--space-factor: 0.25rem;
+	--border-radius-lg: 0.5rem;
+	--island-bg-color: #ffffff;
+	--shadow-island:
+		0px 0px 1px 0px rgba(0, 0, 0, 0.17), 0px 0px 3px 0px rgba(0, 0, 0, 0.08),
+		0px 7px 14px 0px rgba(0, 0, 0, 0.05);
+	--color-primary: #6965db;
+	--color-primary-light: #e3e2fe;
+	--color-on-primary-container: #030064;
+	--color-surface-primary-container: #e0dfff;
+	--color-surface-high: #f1f0ff;
+	--color-on-surface: #1b1b1f;
+	--color-brand-active: #4440bf;
+	--color-brand-hover: #5753d0;
+	--text-primary-color: var(--color-on-surface);
+	--icon-fill-color: var(--color-on-surface);
+	--keybinding-color: #8b8b97;
+	--button-hover-bg: var(--color-surface-high);
+	--button-active-bg: var(--island-bg-color);
+	--button-active-border: var(--color-primary-darkest);
+	--color-primary-darkest: #3e3e9e;
+	--default-border-color: var(--color-surface-high);
+	--button-border: var(--default-border-color);
+	--button-bg: var(--island-bg-color);
+	--button-color: var(--color-on-surface);
+	--color-slider-track: hsl(240, 100%, 90%);
+	--color-slider-thumb: #3d3d3d;
+	--color-disabled: #b8b8b8;
+	--slider-thumb-size: 16px;
+	/* Use px to avoid Obsidian theme font-size affecting rem sizing */
+	--lg-button-size: 36px;
+	--lg-icon-size: 16px;
+	--default-button-size: 32px;
+	--default-icon-size: 16px;
+}
+
+/* ── Dark theme tokens ── */
+.theme-dark .annotation-active-markdown-view {
+	--island-bg-color: #232329;
+	--color-primary: #a8a5ff;
+	--color-primary-light: #4f4d6f;
+	--color-on-primary-container: #e0dfff;
+	--color-surface-primary-container: #403e6a;
+	--color-surface-high: #2e2d39;
+	--color-on-surface: #e3e3e8;
+	--color-brand-active: #d0ccff;
+	--color-brand-hover: #bbb8ff;
+	--button-hover-bg: #363541;
+	--button-bg: var(--color-surface-high);
+	--color-slider-track: hsl(244, 23%, 39%);
+	--color-disabled: #b8b8b8;
+	--keybinding-color: #6b6b76;
+	--color-primary-darkest: #a8a5ff;
+}
+
+.annotation-active-markdown-view .markdown-source-view.mod-cm6 .cm-scroller {
+	overflow-x: hidden;
+}
+
+.annotation-active-markdown-view .markdown-source-view.mod-cm6 .cm-editor {
+	position: relative;
+	overflow: hidden;
+}
+
+.annotation-active-markdown-view .markdown-source-view.mod-cm6 .cm-sizer {
+	position: relative;
+}
+
+.annotation-active-markdown-view .markdown-source-view.mod-cm6 .cm-contentContainer {
+	width: var(--file-line-width);
+	min-width: var(--file-line-width);
+	max-width: var(--file-line-width);
+	margin-inline: auto;
+	overflow: visible;
+}
+
+.annotation-active-markdown-view .markdown-source-view.mod-cm6 .cm-content {
+	width: var(--file-line-width);
+	min-width: var(--file-line-width);
+	max-width: var(--file-line-width);
+}
+
+.annotation-active-markdown-view .markdown-source-view.mod-cm6 .cm-line {
+	max-width: none;
+}
+
+.annotation-active-markdown-view .markdown-source-view.mod-cm6.is-readable-line-width .cm-content,
+.annotation-active-markdown-view .markdown-source-view.mod-cm6.is-readable-line-width .cm-line {
+	max-width: none;
+}
+
+.annotation-editor-overlay {
+	position: absolute;
+	inset: 0 auto auto 0;
+	z-index: 5;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.annotation-editor-overlay.is-drawing {
+	pointer-events: auto;
+}
+
+.annotation-svg-layer {
+	display: block;
+	width: 100%;
+	height: 100%;
+	touch-action: none;
+	pointer-events: none;
+}
+
+.annotation-editor-overlay.is-drawing .annotation-svg-layer {
+	pointer-events: auto;
+}
+
+.annotation-annotation-element {
+	fill: transparent;
+	stroke: var(--text-normal);
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.annotation-annotation-element g,
+.annotation-annotation-element path,
+.annotation-annotation-element line {
+	vector-effect: non-scaling-stroke;
+}
+
+.annotation-annotation-element[data-annotation-id] {
+	pointer-events: none;
+}
+
+.annotation-annotation-element:is(rect, ellipse, polygon, text, foreignObject) {
+	pointer-events: none;
+}
+
+.annotation-editor-overlay.is-drawing .annotation-annotation-element[data-annotation-id] {
+	pointer-events: stroke;
+}
+
+.annotation-editor-overlay.is-drawing
+	.annotation-annotation-element:is(rect, ellipse, polygon, text, foreignObject) {
+	pointer-events: visiblePainted;
+}
+
+.annotation-annotation-element:is(line) {
+	fill: none;
+}
+
+.annotation-pen-element {
+	fill: var(--text-normal);
+	stroke: none;
+}
+
+.annotation-annotation-element:is(text) {
+	fill: var(--text-normal);
+	stroke: transparent;
+	stroke-width: 8;
+	font-family: var(--font-interface);
+	font-size: 18px;
+	font-weight: 500;
+	paint-order: stroke;
+}
+
+.annotation-markdown-text {
+	overflow: visible;
+	pointer-events: none;
+}
+
+.annotation-editor-overlay.is-drawing .annotation-markdown-text {
+	pointer-events: all;
+}
+
+.annotation-markdown-text-content {
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+	font-family: Virgil, "Segoe Print", "Bradley Hand", "Comic Sans MS", var(--font-interface);
+	font-weight: 400;
+	line-height: 1.25;
+	pointer-events: none;
+}
+
+.annotation-markdown-text-content :is(p, ul, ol, blockquote, pre) {
+	margin-block: 0 0.35em;
+}
+
+.annotation-markdown-text-content :is(ul, ol) {
+	padding-inline-start: 1.2em;
+}
+
+.annotation-markdown-text-content > :last-child {
+	margin-bottom: 0;
+}
+
+.annotation-svg-layer marker path {
+	fill: var(--text-normal);
+}
+
+.annotation-selection {
+	pointer-events: none;
+}
+
+.annotation-selection-box {
+	fill: transparent;
+	stroke: var(--color-primary);
+	stroke-width: 1;
+	vector-effect: non-scaling-stroke;
+}
+
+.annotation-selection-handle {
+	fill: #fff;
+	stroke: var(--color-primary);
+	stroke-width: 1;
+	vector-effect: non-scaling-stroke;
+}
+
+.annotation-selection-rotate-handle {
+	fill: #fff;
+	stroke: var(--color-primary);
+	stroke-width: 1;
+	vector-effect: non-scaling-stroke;
+}
+
+.annotation-drawing-mode .cm-editor,
+.annotation-drawing-mode .markdown-source-view {
+	user-select: none;
+}
+
+.annotation-drawing-mode .annotation-svg-layer {
+	cursor: crosshair;
+}
+
+.annotation-drawing-mode .annotation-svg-layer[data-annotation-tool="select"] {
+	cursor: auto;
+}
+
+.annotation-drawing-mode .annotation-svg-layer[data-annotation-tool="text"] {
+	cursor: crosshair;
+}
+
+/* ── Toolbar: Excalidraw-style Island + ToolIcon ── */
+
+.annotation-toolbar,
+.annotation-style-panel-toggle,
+.annotation-style-panel {
+	position: absolute;
+	z-index: 6;
+	display: none;
+	margin: 0;
+	border: none;
+	border-radius: var(--border-radius-lg);
+	background-color: var(--island-bg-color);
+	box-shadow: var(--shadow-island);
+	pointer-events: auto;
+	box-sizing: border-box;
+	transition: box-shadow 0.5s ease-in-out;
+}
+
+.annotation-toolbar {
+	top: 0.375rem;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 4px;
+	width: max-content;
+	max-width: calc(100% - 32px);
+}
+
+.annotation-style-panel-toggle {
+	top: 0.375rem;
+	right: 12px;
+	width: max-content;
+	padding: 0;
+	background: none;
+	box-shadow: none;
+	border-radius: 0;
+}
+
+.annotation-style-panel {
+	top: calc(0.375rem + 2.25rem);
+	right: 12px;
+	padding: calc(2 * var(--space-factor));
+	width: 14.4rem;
+	height: max-content;
+	overflow-y: visible;
+}
+
+.annotation-toolbar.is-drawing {
+	display: flex;
+}
+
+.annotation-style-panel-toggle.is-drawing.has-selection {
+	display: block;
+}
+
+.annotation-style-panel-toggle .ToolIcon {
+	border-radius: var(--border-radius-lg);
+	display: inline-flex;
+	align-items: center;
+	position: relative;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	user-select: none;
+	padding: 0;
+	margin: 0;
+	border: none;
+	background: none;
+	min-width: 0;
+	min-height: 0;
+	font-size: 0;
+	line-height: 0;
+}
+
+.annotation-style-panel-toggle .ToolIcon__icon {
+	box-sizing: border-box;
+	width: var(--lg-button-size);
+	height: var(--lg-button-size);
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
+	margin: 0;
+	border: none;
+	color: var(--icon-fill-color);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	border-radius: var(--border-radius-lg);
+	background-color: var(--island-bg-color);
+	box-shadow: var(--shadow-island);
+}
+
+.annotation-style-panel-toggle .ToolIcon__icon svg {
+	position: relative;
+	width: var(--lg-icon-size);
+	height: var(--lg-icon-size);
+	color: var(--icon-fill-color);
+}
+
+.annotation-style-panel-toggle .ToolIcon:hover .ToolIcon__icon {
+	background-color: var(--button-hover-bg);
+}
+
+.annotation-style-panel-toggle .ToolIcon:active .ToolIcon__icon {
+	background-color: var(--button-active-bg);
+}
+
+.annotation-style-panel-toggle .ToolIcon.is-active .ToolIcon__icon {
+	color: var(--color-primary);
+}
+
+.annotation-style-panel.is-drawing.is-open {
+	display: block;
+}
+
+/* ── Toolbar row (Stack.Row equivalent) ── */
+
+.annotation-toolbar-row {
+	display: grid;
+	grid-template-rows: auto;
+	grid-auto-flow: column;
+	grid-auto-columns: min-content;
+	gap: calc(var(--space-factor) * 1);
+}
+
+/* ── ToolIcon label wrapper ── */
+
+.annotation-toolbar .ToolIcon {
+	border-radius: var(--border-radius-lg);
+	display: inline-flex;
+	align-items: center;
+	position: relative;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	user-select: none;
+	padding: 0;
+	margin: 0;
+	border: none;
+	min-width: 0;
+	min-height: 0;
+	font-size: 0;
+	line-height: 0;
+}
+
+/* ── Hidden radio input ── */
+
+.annotation-toolbar .ToolIcon_type_radio,
+.annotation-toolbar .ToolIcon_type_checkbox {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* ── ToolIcon__icon — the visible icon box ── */
+
+.annotation-toolbar .ToolIcon__icon {
+	box-sizing: border-box;
+	width: var(--lg-button-size);
+	height: var(--lg-button-size);
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
+	margin: 0;
+	border: none;
+	color: var(--icon-fill-color);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	border-radius: var(--border-radius-lg);
+}
+
+.annotation-toolbar .ToolIcon__icon svg {
+	position: relative;
+	width: var(--lg-icon-size);
+	height: var(--lg-icon-size);
+	color: var(--icon-fill-color);
+}
+
+/* ── Keyboard shortcut badge ── */
+
+.annotation-toolbar .ToolIcon__keybinding {
+	position: absolute;
+	bottom: 2px;
+	right: 3px;
+	font-size: 0.625rem;
+	line-height: 1;
+	color: var(--keybinding-color);
+	font-family: var(--font-interface);
+	user-select: none;
+	pointer-events: none;
+}
+
+/* ── Checked (active) state ── */
+
+/* ── Checked (active) state ── */
+
+.annotation-toolbar .ToolIcon_type_radio:checked + .ToolIcon__icon {
+	background: var(--color-surface-primary-container);
+}
+
+.annotation-toolbar .ToolIcon_type_radio:checked + .ToolIcon__icon svg {
+	color: var(--color-on-primary-container);
+}
+
+.annotation-toolbar .ToolIcon_type_radio:checked ~ .ToolIcon__keybinding {
+	color: var(--color-on-primary-container);
+}
+
+/* ── Fillable checked: also set SVG fill ── */
+
+.annotation-toolbar .ToolIcon.fillable .ToolIcon_type_radio:checked + .ToolIcon__icon svg {
+	fill: var(--color-on-primary-container);
+}
+
+/* ── Hover state ── */
+
+.annotation-toolbar .ToolIcon__icon:hover {
+	background: var(--button-hover-bg);
+}
+
+/* ── Active/press state ── */
+
+.annotation-toolbar .ToolIcon__icon:active {
+	background: var(--button-hover-bg);
+	border: 1px solid var(--button-active-border);
+}
+
+.annotation-toolbar .ToolIcon__icon:active svg {
+	color: var(--color-on-primary-container);
+}
+
+.annotation-view-action.is-active {
+	color: var(--color-primary);
+	background-color: var(--color-surface-primary-container);
+}
+
+.theme-dark .annotation-view-action.is-active {
+	color: #9b97e8;
+	background-color: rgba(105, 101, 219, 0.2);
+}
+
+/* ── Style panel: Excalidraw Options Panel ── */
+
+.annotation-style-controls {
+	display: flex;
+	flex-direction: column;
+	row-gap: 0.75rem;
+}
+
+.annotation-style-controls h3 {
+	margin: 0;
+	margin-bottom: 0.25rem;
+	padding: 0;
+	font-size: 0.75rem;
+	font-weight: 400;
+	color: var(--text-primary-color);
+	display: block;
+}
+
+.annotation-style-controls fieldset {
+	margin: 0;
+	padding: 0;
+	border: none;
+}
+
+.annotation-style-controls legend {
+	margin: 0;
+	margin-bottom: 0.25rem;
+	padding: 0;
+	font-size: 0.75rem;
+	font-weight: 400;
+	color: var(--text-primary-color);
+	display: block;
+}
+
+.annotation-style-controls .control-label {
+	margin: 0;
+	margin-bottom: 0.25rem;
+	font-size: 0.75rem;
+	font-weight: 400;
+	color: var(--text-primary-color);
+	display: block;
+}
+
+/* ── Color picker (matches excalidraw .color-picker__*) ── */
+
+.annotation-style-panel .color-picker-container {
+	display: grid;
+	grid-template-columns: 1fr 20px 1.625rem;
+	align-items: center;
+	padding: 0.25rem 0;
+}
+
+.annotation-style-panel .color-picker__top-picks {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.annotation-style-panel .color-picker__button {
+	--radius: 4px;
+	--size: 1.375rem;
+	width: var(--size);
+	height: var(--size);
+	border: 0;
+	border-radius: var(--radius);
+	padding: 0;
+	margin: 0;
+	cursor: pointer;
+	position: relative;
+	overflow: hidden;
+	box-sizing: border-box;
+	background-color: var(--swatch-color);
+	background-position: left center;
+	font-family: inherit;
+	filter: var(--theme-filter);
+	transition: transform 0.1s ease;
+}
+
+.annotation-style-panel .color-picker__button.active-color {
+	--radius: 4px;
+	--size: 1.375rem;
+}
+
+.annotation-style-panel .color-picker__button.has-outline {
+	box-shadow: inset 0 0 0 1px #d9d9d9;
+}
+
+.theme-dark .annotation-style-panel .color-picker__button.has-outline {
+	box-shadow: inset 0 0 0 1px #555;
+}
+
+.annotation-style-panel .color-picker__button.is-transparent {
+	background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uCTZhw1gGGYhAGBZIA/nYDCgBDAm9BGDWAAJyRCgLaBCAAgXwixzAS0pgAAAABJRU5ErkJggg==);
+}
+
+.annotation-style-panel .color-picker__button:hover:not(.active) {
+	transform: scale(1.075);
+}
+
+.annotation-style-panel .color-picker__button.active .color-picker__button-outline {
+	position: absolute;
+	--offset: -1px;
+	top: var(--offset);
+	left: var(--offset);
+	right: var(--offset);
+	bottom: var(--offset);
+	box-shadow: 0 0 0 1px var(--color-primary-darkest);
+	z-index: 1;
+	border-radius: var(--radius);
+	filter: var(--theme-filter);
+}
+
+.annotation-style-panel .color-picker__button-outline {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.annotation-style-panel .color-picker__button-background {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.annotation-style-panel .color-picker__button-background svg {
+	width: 100%;
+	height: 100%;
+}
+
+.annotation-style-panel .color-picker-divider {
+	width: 1px;
+	height: 1rem;
+	background-color: var(--default-border-color);
+	justify-self: center;
+}
+
+/* ── Button list (matches excalidraw .buttonList) ── */
+
+.annotation-style-panel .buttonList {
+	display: flex;
+	flex-wrap: wrap;
+	column-gap: 0.5rem;
+	row-gap: 0.5rem;
+	max-width: 13rem;
+	padding: calc(var(--space-factor)) 0;
+}
+
+.annotation-style-panel .buttonList label,
+.annotation-style-panel .buttonList button,
+.annotation-style-panel .buttonList .zIndexButton {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 0;
+	min-width: 0;
+	min-height: 0;
+	width: var(--default-button-size);
+	height: var(--default-button-size);
+	box-sizing: border-box;
+	border-width: 1px;
+	border-style: solid;
+	border-color: var(--button-border, var(--default-border-color));
+	border-radius: var(--border-radius-lg);
+	cursor: pointer;
+	background-color: var(--button-bg, var(--island-bg-color));
+	color: var(--button-color, var(--color-on-surface));
+	font-family: var(--font-interface);
+	font-size: inherit;
+	line-height: 1;
+	box-shadow: none;
+	outline: none;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.annotation-style-panel .buttonList .ToolIcon__icon {
+	all: unset !important;
+	display: flex !important;
+}
+
+.annotation-style-panel .buttonList input[type="radio"] {
+	opacity: 0;
+	position: absolute;
+	pointer-events: none;
+}
+
+.annotation-style-panel .buttonList label:hover,
+.annotation-style-panel .buttonList button:hover,
+.annotation-style-panel .buttonList .zIndexButton:hover {
+	background-color: var(--button-hover-bg, var(--island-bg-color));
+	border-color: var(--button-hover-border, var(--button-border, var(--default-border-color)));
+	color: var(--button-hover-color, var(--button-color, var(--text-primary-color, inherit)));
+}
+
+.annotation-style-panel .buttonList button:active,
+.annotation-style-panel .buttonList .zIndexButton:active {
+	background-color: var(--button-active-bg, var(--island-bg-color));
+	border-color: var(--button-active-border, var(--color-primary-darkest));
+}
+
+.annotation-style-panel .buttonList label.active,
+.annotation-style-panel .buttonList button.active,
+.annotation-style-panel .buttonList .zIndexButton.active {
+	background-color: var(--color-surface-primary-container);
+	border-color: var(--color-surface-primary-container);
+}
+
+.annotation-style-panel .buttonList label.active:hover,
+.annotation-style-panel .buttonList button.active:hover,
+.annotation-style-panel .buttonList .zIndexButton.active:hover {
+	background-color: var(--color-surface-primary-container);
+}
+
+.annotation-style-panel .buttonList label.active svg,
+.annotation-style-panel .buttonList button.active svg,
+.annotation-style-panel .buttonList .zIndexButton.active svg {
+	color: var(--color-on-primary-container);
+}
+
+.annotation-style-panel .buttonList label svg,
+.annotation-style-panel .buttonList button svg,
+.annotation-style-panel .buttonList .zIndexButton svg,
+.annotation-style-panel .ToolIcon__icon svg {
+	width: var(--default-icon-size);
+	height: var(--default-icon-size);
+	color: var(--icon-fill-color);
+}
+
+/* ── Obsidian button reset (matches excalidraw-plugin) ── */
+
+.annotation-style-panel button,
+.annotation-style-panel .ToolIcon button {
+	box-shadow: none;
+	justify-content: initial;
+}
+
+.annotation-style-panel button {
+	-webkit-tap-highlight-color: transparent;
+	-webkit-touch-callout: none;
+	user-select: none;
+	cursor: pointer;
+	background: none;
+	border: none;
+	min-width: 0;
+	min-height: 0;
+}
+
+.annotation-style-panel button:focus-visible {
+	outline: transparent;
+	box-shadow: 0 0 0 1px var(--color-brand-hover);
+}
+
+/* ── Action buttons (z-index, duplicate, delete) — Excalidraw match ── */
+
+.annotation-style-panel .ToolIcon_type_button {
+	padding: 0;
+	margin: 0;
+	font-size: inherit;
+}
+
+.annotation-style-panel .ToolIcon_type_button:focus-visible {
+	box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.annotation-style-panel .ToolIcon_type_button:disabled {
+	cursor: default;
+}
+
+.annotation-style-panel .ToolIcon_type_button:disabled:active,
+.annotation-style-panel .ToolIcon_type_button:disabled:focus-visible,
+.annotation-style-panel .ToolIcon_type_button:disabled:hover {
+	background-color: initial;
+	border: none;
+	box-shadow: none;
+}
+
+.annotation-style-panel .ToolIcon_type_button:disabled svg {
+	color: var(--color-disabled);
+}
+
+.annotation-style-panel .ToolIcon_type_button--show {
+	visibility: visible;
+}
+
+.annotation-style-panel .ToolIcon_type_button--hide {
+	display: none !important;
+}
+
+/* ── Opacity slider ── */
+
+.annotation-style-panel .range-wrapper {
+	position: relative;
+	padding-top: 10px;
+	padding-bottom: 25px;
+}
+
+.annotation-style-panel .annotation-opacity-slider {
+	width: 100%;
+	-webkit-appearance: none;
+	appearance: none;
+	height: 4px;
+	background: var(--color-slider-track);
+	border-radius: 2px;
+	outline: none;
+}
+
+.annotation-style-panel .annotation-opacity-slider::-webkit-slider-thumb {
+	appearance: none;
+	width: var(--slider-thumb-size);
+	height: var(--slider-thumb-size);
+	border-radius: 50%;
+	background: var(--color-slider-thumb);
+	cursor: pointer;
+	border: none;
+}
+
+.annotation-style-panel .annotation-opacity-slider::-moz-range-thumb {
+	width: var(--slider-thumb-size);
+	height: var(--slider-thumb-size);
+	border-radius: 50%;
+	background: var(--color-slider-thumb);
+	cursor: pointer;
+	border: none;
+}
+
+.annotation-style-panel .annotation-opacity-value {
+	position: absolute;
+	bottom: 0;
+	transform: translateX(-50%);
+	font-size: 12px;
+	color: var(--text-primary-color);
+}
+
+.annotation-style-panel .zero-label {
+	position: absolute;
+	bottom: 0;
+	left: 4px;
+	font-size: 12px;
+	color: var(--text-primary-color);
+}
+
+.annotation-editor-overlay .annotation-inline-text-editor {
+	position: absolute;
+	z-index: 7;
+	min-width: 0;
+	min-height: 32px;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	outline: 0 !important;
+	appearance: none;
+	font-family: Virgil, "Segoe Print", "Bradley Hand", "Comic Sans MS", var(--font-interface);
+	font-weight: 400;
+	overflow: hidden;
+	resize: none !important;
+	pointer-events: auto;
+	white-space: pre;
+	word-break: normal;
+	overflow-wrap: normal;
+	box-sizing: content-box;
+	caret-color: var(--color-primary);
+}
+
+.annotation-editor-overlay .annotation-inline-text-editor[data-annotation-auto-resize="false"] {
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+.annotation-editor-overlay .annotation-inline-text-editor:focus,
+.annotation-editor-overlay .annotation-inline-text-editor:focus-visible {
+	border: 0 !important;
+	box-shadow: none !important;
+	outline: 0 !important;
+}

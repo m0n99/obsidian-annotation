@@ -10,11 +10,14 @@ export function sizeOverlayToDocumentPlane(
 	svgEl: SVGSVGElement
 ) {
 	const editorEl = getEditorEl(view)
+	const sizerEl = getEditorSizerEl(view)
 	const editorRect = editorEl?.getBoundingClientRect() ?? overlayHost.getBoundingClientRect()
+	const sizerRect = sizerEl?.getBoundingClientRect()
 	const mountRect = overlayMountEl.getBoundingClientRect()
-	const left = Math.floor(editorRect.left - mountRect.left)
+	const planeRect = sizerRect ?? editorRect
+	const left = Math.floor(planeRect.left - mountRect.left)
 	const width = Math.ceil(
-		editorRect.width || overlayHost.clientWidth || overlayMountEl.clientWidth
+		sizerEl?.scrollWidth || planeRect.width || overlayHost.clientWidth || overlayMountEl.clientWidth
 	)
 	const height = Math.ceil(
 		Math.max(overlayMountEl.scrollHeight, overlayMountEl.clientHeight, DEFAULT_OVERLAY_HEIGHT)

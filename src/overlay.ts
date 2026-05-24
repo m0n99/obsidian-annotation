@@ -77,7 +77,6 @@ const ERASER_CURSOR_SIZE_PX = 20
 const ERASER_CURSOR_RADIUS_PX = 5
 const DOUBLE_CLICK_TIMEOUT_MS = 500
 const DOUBLE_CLICK_DISTANCE_PX = 12
-const RECENTER_EPSILON_PX = 0.5
 
 type InteractionState = {
 	type: 'move' | 'resize' | 'rotate'
@@ -133,7 +132,6 @@ export class AnnotationEditorOverlay {
 	private readonly file: TFile | null
 	private readonly filePath: string | null
 	private currentStyle: Required<AnnotationStyle> = defaultAnnotationStyle()
-	private sizerCenterX: number | null = null
 	private mutationVersion = 0
 	private isDrawingMode = false
 	private isDestroyed = false
@@ -229,7 +227,6 @@ export class AnnotationEditorOverlay {
 
 	resize() {
 		this.sizeToDocumentPlane()
-		this.recenterScene()
 	}
 
 	private renderToolbar() {
@@ -1520,41 +1517,13 @@ export class AnnotationEditorOverlay {
 	}
 
 	private toPersistedScene(scene: AnnotationScene): AnnotationScene {
-		return this.translateSceneX(scene, -getEditorSizerCenterX(this.view, this.svgEl), 'center')
+		return scene.origin === 'center'
+			? this.translateSceneX(scene, getEditorSizerCenterX(this.view, this.svgEl), 'left')
+			: { ...scene, origin: 'left' }
 	}
 
 	private fromPersistedScene(scene: AnnotationScene): AnnotationScene {
-		return this.translateSceneX(scene, getEditorSizerCenterX(this.view, this.svgEl), 'center')
-	}
-
-	private recenterScene() {
-		const nextCenterX = getEditorSizerCenterX(this.view, this.svgEl)
-		const previousCenterX = this.sizerCenterX
-		this.sizerCenterX = nextCenterX
-
-		if (previousCenterX === null) {
-			return
-		}
-
-		const dx = nextCenterX - previousCenterX
-		if (Math.abs(dx) < RECENTER_EPSILON_PX) {
-			return
-		}
-
-		this.scene = this.translateSceneX(this.scene, dx, this.scene.origin)
-		this.undoStack = this.undoStack.map((scene) =>
-			this.translateSceneX(scene, dx, scene.origin)
-		)
-		this.redoStack = this.redoStack.map((scene) =>
-			this.translateSceneX(scene, dx, scene.origin)
-		)
-		if (this.draftElement) {
-			this.draftElement = {
-				...this.draftElement,
-				x: this.draftElement.x + dx
-			}
-		}
-		this.renderScene()
+		return this.translateSceneX(scene, getEditorSizerCenterX(this.view, this.svgEl), 'left')
 	}
 
 	private translateSceneX(

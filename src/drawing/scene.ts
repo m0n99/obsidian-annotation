@@ -15,7 +15,7 @@ import { isBoxElement } from './guards'
 export function emptyScene(): AnnotationScene {
 	return {
 		elements: [],
-		origin: 'center'
+		origin: 'left'
 	}
 }
 

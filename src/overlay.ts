@@ -124,6 +124,9 @@ export class AnnotationEditorOverlay {
 	private readonly filePath: string | null
 	private markdownFontSizePx: number = TEXT_MARKDOWN_DEFAULT_FONT_SIZE
 	private currentStyle: Required<AnnotationStyle> = defaultAnnotationStyle()
+	private currentTextAlign: 'left' | 'center' | 'right' = 'left'
+	private currentFontSize: number = TEXT_MARKDOWN_DEFAULT_FONT_SIZE
+	private currentFontFamily: number = 1
 	private mutationVersion = 0
 	private isDrawingMode = false
 	private isDestroyed = false
@@ -154,6 +157,15 @@ export class AnnotationEditorOverlay {
 		this.svgEl.addClass('annotation-svg-layer')
 		this.rootEl.appendChild(this.svgEl)
 		this.eraserCursorFn = createEraserCursor(view.contentEl)
+
+		// Prevent text editor from losing focus when interacting with style controls
+		const preventEditorBlur = () => {
+			if (this.textEditor.isActive) {
+				this.textEditor.preventBlur()
+			}
+		}
+		this.stylePanelToggleEl.addEventListener('mousedown', preventEditorBlur)
+		this.stylePanelEl.addEventListener('mousedown', preventEditorBlur)
 
 		this.renderToolbar()
 		this.resizeObserver = new ResizeObserver(() => this.resize())
@@ -245,6 +257,32 @@ export class AnnotationEditorOverlay {
 			? this.scene.elements.find((element) => element.id === this.selectedId)
 			: null
 		const isTextSel = selected !== null && selected !== undefined && selected.type === 'text'
+		const isTextTool = this.tool === 'text'
+
+		// Sync current text style from selected text element
+		if (isTextSel && selected.type === 'text') {
+			this.currentTextAlign = selected.textAlign ?? 'left'
+			this.currentFontSize = selected.fontSize ?? TEXT_MARKDOWN_DEFAULT_FONT_SIZE
+			this.currentFontFamily = selected.fontFamily ?? 1
+		}
+
+		// Show text style controls when tool is text or a text element is selected
+		const useTextStyle = isTextTool || isTextSel
+		const textStyleState = useTextStyle
+			? isTextSel && selected.type === 'text'
+				? {
+						style: styleForElement(selected),
+						textAlign: selected.textAlign ?? 'left',
+						fontSize: selected.fontSize ?? TEXT_MARKDOWN_DEFAULT_FONT_SIZE,
+						fontFamily: selected.fontFamily ?? 1
+					}
+				: {
+						style: this.currentStyle,
+						textAlign: this.currentTextAlign,
+						fontSize: this.currentFontSize,
+						fontFamily: this.currentFontFamily
+					}
+			: undefined
 
 		renderOverlayToolbar(
 			this.toolbarEl,
@@ -255,15 +293,8 @@ export class AnnotationEditorOverlay {
 				style: this.styleForOptionsPane(),
 				hasSelection: this.selectedId !== null,
 				isTextSelection: isTextSel,
-				textStyle:
-					isTextSel && selected.type === 'text'
-						? {
-								style: styleForElement(selected),
-								textAlign: selected.textAlign ?? 'left',
-								fontSize: selected.fontSize ?? TEXT_MARKDOWN_DEFAULT_FONT_SIZE,
-								fontFamily: selected.fontFamily ?? 1
-							}
-						: undefined,
+				isTextTool,
+				textStyle: textStyleState,
 				stylePanelOpen: this.stylePanelOpen
 			},
 			{
@@ -385,13 +416,24 @@ export class AnnotationEditorOverlay {
 		)
 	}
 
+	private isStyleControlTarget(target: EventTarget | null) {
+		return (
+			target instanceof Node &&
+			(this.stylePanelToggleEl.contains(target) || this.stylePanelEl.contains(target))
+		)
+	}
+
 	private handlePointerDown = (event: PointerEvent) => {
 		if (!this.isDrawingMode || event.button !== 0) {
 			return
 		}
 
 		if (this.textEditor.isActive && event.target !== this.textEditor.currentTextarea) {
-			this.textEditor.commit()
+			if (this.isStyleControlTarget(event.target)) {
+				this.textEditor.preventBlur()
+			} else {
+				this.textEditor.commit()
+			}
 		}
 
 		event.preventDefault()
@@ -820,6 +862,11 @@ export class AnnotationEditorOverlay {
 		fontSize?: number
 		fontFamily?: number
 	}) {
+		// Always track current text style for new elements
+		if (props.textAlign !== undefined) this.currentTextAlign = props.textAlign
+		if (props.fontSize !== undefined) this.currentFontSize = props.fontSize
+		if (props.fontFamily !== undefined) this.currentFontFamily = props.fontFamily
+
 		const result = applyTextPropertyUpdate(this.scene, this.selectedId, props)
 		if (result) {
 			this.commitSceneMutation({ elements: result.elements })
@@ -827,6 +874,7 @@ export class AnnotationEditorOverlay {
 				this.textEditor.syncStyle(result.updatedTextElement, this.markdownFontSizePx)
 			}
 		}
+		this.renderToolbar()
 	}
 
 	// -- Text editing -----------------------------------------------------
@@ -837,7 +885,9 @@ export class AnnotationEditorOverlay {
 			target,
 			{
 				style: this.styleForNewElement(),
-				fontSize: this.markdownFontSizePx,
+				fontSize: this.currentFontSize,
+				fontFamily: this.currentFontFamily,
+				textAlign: this.currentTextAlign,
 				markdownFontSize: this.markdownFontSizePx
 			},
 			this.createTextEditorHost()

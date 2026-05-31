@@ -148,7 +148,8 @@ export function createTextElement(
 	fontSize: number,
 	style: Required<AnnotationStyle>,
 	autoResize = true,
-	fontFamily = DEFAULT_ANNOTATION_FONT_FAMILY
+	fontFamily = DEFAULT_ANNOTATION_FONT_FAMILY,
+	textAlign: 'left' | 'center' | 'right' = 'left'
 ): TextAnnotationElement {
 	const displayText = autoResize ? text : wrapAnnotationText(text, width, fontSize, fontFamily)
 	return normalizeElement(
@@ -163,7 +164,7 @@ export function createTextElement(
 			originalText: text,
 			fontSize,
 			fontFamily,
-			textAlign: 'left',
+			textAlign,
 			verticalAlign: 'top',
 			containerId: null,
 			autoResize,

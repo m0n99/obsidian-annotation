@@ -24,6 +24,7 @@ type OverlayToolbarState = {
 	tool: AnnotationTool
 	hasSelection: boolean
 	isTextSelection: boolean
+	isTextTool: boolean
 	textStyle?: TextStyleControlsState
 	stylePanelOpen?: boolean
 }
@@ -171,7 +172,7 @@ export function renderOverlayToolbar(
 	const styleEl = stylePanelEl.createDiv({ cls: 'annotation-style-controls' })
 
 	if (
-		state.isTextSelection &&
+		(state.isTextTool || state.isTextSelection) &&
 		state.textStyle &&
 		callbacks.updateTextAlign &&
 		callbacks.updateFontSize

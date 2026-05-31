@@ -45,6 +45,7 @@ export class OverlayTextEditor {
 	private elementId: string | null = null
 	private host: TextEditorHost | null = null
 	private finishFn: ((commit: boolean) => void) | null = null
+	private suppressBlur = false
 
 	get isActive(): boolean {
 		return this.textarea !== null
@@ -69,6 +70,7 @@ export class OverlayTextEditor {
 			style: Required<AnnotationStyle>
 			fontSize: number
 			fontFamily?: number
+			textAlign?: 'left' | 'center' | 'right'
 			markdownFontSize: number
 		},
 		host: TextEditorHost
@@ -82,7 +84,8 @@ export class OverlayTextEditor {
 		const style = isExisting ? styleForElement(target) : options.style
 		const initialText = isExisting ? (target.originalText ?? target.text) : ''
 		const fontSize = isExisting ? textFontSize(target) : options.fontSize
-		const fontFamily = isExisting ? textFontFamily(target) : undefined
+		const fontFamily = isExisting ? textFontFamily(target) : options.fontFamily
+		const textAlign = isExisting ? (target.textAlign ?? 'left') : (options.textAlign ?? 'left')
 		const initialWidth = isExisting ? textBoxWidth(target) : 80
 		const initialHeight = isExisting
 			? textBoxHeight(target)
@@ -176,7 +179,8 @@ export class OverlayTextEditor {
 					fontSize,
 					style,
 					autoResize,
-					fontFamily
+					fontFamily,
+					textAlign
 				)
 				capturedHost.commitSceneMutation({
 					elements: [...capturedHost.getScene().elements, element]
@@ -204,7 +208,14 @@ export class OverlayTextEditor {
 				finish(false)
 			}
 		})
-		textarea.addEventListener('blur', () => finish(true))
+		textarea.addEventListener('blur', () => {
+			if (this.suppressBlur) {
+				this.suppressBlur = false
+				textarea.focus()
+				return
+			}
+			finish(true)
+		})
 
 		window.requestAnimationFrame(() => {
 			textarea.focus()
@@ -225,6 +236,10 @@ export class OverlayTextEditor {
 
 	commit(): void {
 		this.finishFn?.(true)
+	}
+
+	preventBlur(): void {
+		this.suppressBlur = true
 	}
 
 	autosize(defaultFontSize: number): void {

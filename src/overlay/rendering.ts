@@ -1,4 +1,4 @@
-import { type Component, MarkdownRenderer, type MarkdownView } from 'obsidian'
+import { MarkdownRenderer, type MarkdownView } from 'obsidian'
 import {
 	EXCALIDRAW_TEXT_LINE_HEIGHT,
 	SELECTION_HANDLE_SIZE,
@@ -44,6 +44,7 @@ export type OverlayRenderState = {
 export interface OverlayRenderContext {
 	readonly app: import('obsidian').App
 	readonly view: MarkdownView
+	readonly component: import('obsidian').Component
 	isDestroyed: boolean
 	selectedId: string | null
 }
@@ -197,7 +198,7 @@ function createMarkdownTextNode(
 		element.text,
 		container,
 		context.view.file?.path ?? '',
-		context as unknown as Component
+		context.component
 	).then(() => {
 		updateTextBoxHeightFromRenderedContent(
 			element,

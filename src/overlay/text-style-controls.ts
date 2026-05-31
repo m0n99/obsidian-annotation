@@ -1,9 +1,9 @@
-import type { AnnotationStyle } from './drawing/types'
-import { TEXT_FONT_SIZES } from './drawing/types'
+import type { AnnotationStyle } from '../drawing/types'
+import { TEXT_FONT_SIZES } from '../drawing/types'
 import {
 	DEFAULT_ELEMENT_STROKE_PICKS,
 	FONT_FAMILY
-} from './drawing/excalidraw'
+} from '../drawing/excalidraw'
 import {
 	createBringForwardIcon,
 	createBringToFrontIcon,
@@ -21,13 +21,13 @@ import {
 	createTextAlignLeftIcon,
 	createTextAlignRightIcon,
 	createTrashIcon
-} from './drawing/icons'
+} from '../drawing/icons'
 import {
 	renderButtonListFieldset,
 	renderColorRow,
 	renderOpacitySlider
-} from './overlay-shared-controls'
-import type { OverlayLayerDirection } from './overlay-toolbar'
+} from './shared-controls'
+import type { OverlayLayerDirection } from './toolbar'
 
 export type TextStyleControlsState = {
 	style: Required<AnnotationStyle>

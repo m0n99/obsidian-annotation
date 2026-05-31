@@ -1,10 +1,10 @@
-import type { AnnotationStyle } from './drawing/types'
+import type { AnnotationStyle } from '../drawing/types'
 import {
 	DEFAULT_ELEMENT_BACKGROUND_PICKS,
 	DEFAULT_ELEMENT_STROKE_PICKS,
 	ROUGHNESS,
 	STROKE_WIDTH
-} from './drawing/excalidraw'
+} from '../drawing/excalidraw'
 import {
 	createBringForwardIcon,
 	createBringToFrontIcon,
@@ -27,13 +27,13 @@ import {
 	createStrokeWidthExtraBoldIcon,
 	createStrokeWidthThinIcon,
 	createTrashIcon
-} from './drawing/icons'
+} from '../drawing/icons'
 import {
 	renderButtonListFieldset,
 	renderColorRow,
 	renderOpacitySlider
-} from './overlay-shared-controls'
-import type { OverlayLayerDirection } from './overlay-toolbar'
+} from './shared-controls'
+import type { OverlayLayerDirection } from './toolbar'
 
 export type StyleControlsState = {
 	style: Required<AnnotationStyle>

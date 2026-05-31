@@ -1,7 +1,7 @@
 import {
 	COLOR_OUTLINE_CONTRAST_THRESHOLD,
 	isColorDark
-} from './drawing/excalidraw'
+} from '../drawing/excalidraw'
 
 export function renderColorRow(
 	container: HTMLElement,

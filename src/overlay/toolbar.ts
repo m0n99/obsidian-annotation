@@ -1,4 +1,4 @@
-import type { AnnotationTool } from './drawing/types'
+import type { AnnotationTool } from '../drawing/types'
 import {
 	createArrowIcon,
 	createDiamondIcon,
@@ -10,13 +10,13 @@ import {
 	createRectangleIcon,
 	createSelectionIcon,
 	createTextIcon
-} from './drawing/icons'
-import { renderStyleControls } from './overlay-style-controls'
+} from '../drawing/icons'
+import { renderStyleControls } from './style-controls'
 import {
 	renderTextStyleControls,
 	type TextStyleControlsState,
 	type TextStyleControlsCallbacks
-} from './overlay-text-style-controls'
+} from './text-style-controls'
 
 export type OverlayLayerDirection = 'front' | 'forward' | 'backward' | 'back'
 

@@ -1,5 +1,5 @@
-import type { AnnotationElement, AnnotationScene } from './drawing/types'
-import { createElementId } from './drawing/scene'
+import type { AnnotationElement, AnnotationScene } from '../drawing/types'
+import { createElementId } from '../drawing/scene'
 
 export type LayerDirection = 'front' | 'forward' | 'backward' | 'back'
 

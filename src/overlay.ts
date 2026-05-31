@@ -2,7 +2,6 @@ import { App, Component, MarkdownView, TFile } from 'obsidian'
 import { preloadExcalidrawFonts } from './drawing/fonts'
 import {
 	SELECTION_HANDLE_SIZE,
-	SHIFT_LOCKING_ANGLE,
 	SVG_NS,
 	TEXT_MARKDOWN_DEFAULT_FONT_SIZE,
 	type AnnotationElement,
@@ -13,57 +12,39 @@ import {
 	type SelectionHandle,
 	type TextAnnotationElement
 } from './drawing/types'
-import { containsPoint } from './drawing/hit-test'
 import {
 	constrainBoxSize,
 	constrainLinearPoint,
 	cursorForSelectionHandle,
 	distance,
 	elementBounds,
-	moveElement,
-	resizeElementFromPointer,
-	resizeEdgeAtPoint,
-	rotationCenterForElement,
-	selectionHandleCenter,
-	selectionHandlesForElement,
-	textBoxHeight,
-	textBoxWidth,
-	textFontFamily,
-	textFontSize,
-	transformHandlesForElement
+	rotationCenterForElement
 } from './drawing/geometry'
 import {
 	absolutePoints,
-	bumpElementVersion,
 	createBoxElement,
 	createDraftElement,
 	createFreeDrawElement,
 	createLinearElement
 } from './drawing/excalidraw-adapter'
 import { isBoxElement } from './drawing/guards'
-import { normalizeTextValue } from './drawing/text'
 import {
 	getEditorEl,
 	getEditorOverlayHost,
 	getEditorOverlayMount,
-	getEditorSizerCenterX,
 	sizeOverlayToDocumentPlane
 } from './editor-dom'
-import { duplicateElement, moveElementLayer, type LayerDirection } from './overlay-scene-commands'
-import { renderOverlayToolbar } from './overlay-toolbar'
+import { duplicateElement, moveElementLayer, type LayerDirection } from './overlay/scene-commands'
+import { renderOverlayToolbar } from './overlay/toolbar'
 import type { AnnotationData } from './persistence'
 import {
 	ANNOTATION_DRAWING_CLASS,
 	DOUBLE_CLICK_DISTANCE_PX,
 	DOUBLE_CLICK_TIMEOUT_MS,
-	DEBUG_GEOMETRY_VERSION,
-	SCENE_COORDINATE_SPACE,
-	SCENE_SAVE_DELAY_MS,
 	type InteractionState,
 	isAppLevelShortcut,
 	isDebugEnabled,
-	isEditableKeyboardTarget,
-	normalizeRadians
+	isEditableKeyboardTarget
 } from './overlay/utils'
 import {
 	type OverlayRenderState,
@@ -72,7 +53,6 @@ import {
 } from './overlay/rendering'
 import {
 	OverlayTextEditor,
-	resizeTextBoxForStyleChange,
 	type TextEditorHost
 } from './overlay/text-editor'
 import { createEraserCursor, resolveCursor } from './overlay/cursor'
@@ -85,6 +65,22 @@ import {
 	normalizeScene,
 	styleForElement
 } from './drawing/scene'
+import {
+	findElementAtPoint,
+	findTextElementAtPoint,
+	findSelectionHandleAtPoint,
+	findEventTextElement
+} from './overlay/hit-test'
+import { pointerPoint, penPoint, logGeometry } from './overlay/pointer'
+import { applyInteraction } from './overlay/interaction'
+import { applyStyleUpdate, applyTextPropertyUpdate } from './overlay/style'
+import {
+	type SaveHost,
+	scheduleSave as scheduleOverlaySave,
+	flushSave as flushOverlaySave,
+	saveScene,
+	loadScene
+} from './overlay/save'
 
 export { ANNOTATION_DRAWING_CLASS } from './overlay/utils'
 
@@ -107,6 +103,7 @@ export class AnnotationEditorOverlay {
 	private readonly resizeObserver: ResizeObserver
 	private readonly textEditor = new OverlayTextEditor()
 	private readonly eraserCursorFn: () => string
+	private readonly saveHost: SaveHost
 	private scene: AnnotationScene = emptyScene()
 	private saveTimer: number | null = null
 	private tool: AnnotationTool = 'select'
@@ -140,6 +137,7 @@ export class AnnotationEditorOverlay {
 
 		this.file = view.file
 		this.filePath = this.file?.path ?? null
+		this.saveHost = plugin
 		this.overlayHost = getEditorOverlayHost(view)
 		this.overlayMountEl = getEditorOverlayMount(view)
 		this.rootEl = this.overlayMountEl.createDiv({ cls: 'annotation-editor-overlay' })
@@ -180,6 +178,8 @@ export class AnnotationEditorOverlay {
 		this.renderScene()
 		void this.load()
 	}
+
+	// -- Lifecycle --------------------------------------------------------
 
 	setDrawingMode(enabled: boolean) {
 		if (this.isDrawingMode === enabled) {
@@ -229,7 +229,13 @@ export class AnnotationEditorOverlay {
 
 	resize() {
 		this.markdownFontSizePx = updateMarkdownTextScale(this.view, TEXT_MARKDOWN_DEFAULT_FONT_SIZE)
-		this.sizeToDocumentPlane()
+		sizeOverlayToDocumentPlane(
+			this.view,
+			this.overlayHost,
+			this.overlayMountEl,
+			this.rootEl,
+			this.svgEl
+		)
 	}
 
 	// -- Toolbar ----------------------------------------------------------
@@ -254,7 +260,7 @@ export class AnnotationEditorOverlay {
 						? {
 								style: styleForElement(selected),
 								textAlign: selected.textAlign ?? 'left',
-								fontSize: textFontSize(selected),
+								fontSize: selected.fontSize ?? TEXT_MARKDOWN_DEFAULT_FONT_SIZE,
 								fontFamily: selected.fontFamily ?? 1
 							}
 						: undefined,
@@ -272,26 +278,26 @@ export class AnnotationEditorOverlay {
 					this.renderScene()
 				},
 				updateStyle: (style) => {
-					this.applyStyleUpdate(style)
+					this.applyOverlayStyleUpdate(style)
 					this.renderToolbar()
 					this.renderScene()
 				},
 				updateOpacity: (opacity) => {
-					this.applyStyleUpdate({ opacity })
+					this.applyOverlayStyleUpdate({ opacity })
 					this.renderScene()
 				},
 				updateTextAlign: (align) => {
-					this.applyTextPropertyUpdate({ textAlign: align })
+					this.applyOverlayTextPropertyUpdate({ textAlign: align })
 					this.renderToolbar()
 					this.renderScene()
 				},
 				updateFontSize: (size) => {
-					this.applyTextPropertyUpdate({ fontSize: size })
+					this.applyOverlayTextPropertyUpdate({ fontSize: size })
 					this.renderToolbar()
 					this.renderScene()
 				},
 				updateFontFamily: (family) => {
-					this.applyTextPropertyUpdate({ fontFamily: family })
+					this.applyOverlayTextPropertyUpdate({ fontFamily: family })
 					this.renderToolbar()
 					this.renderScene()
 				},
@@ -305,13 +311,13 @@ export class AnnotationEditorOverlay {
 				},
 				moveLayer: (direction) => {
 					if (direction === 'front') {
-						this.bringToFront()
+						this.moveSelectedLayer('front')
 					} else if (direction === 'forward') {
-						this.bringForward()
+						this.moveSelectedLayer('forward')
 					} else if (direction === 'backward') {
-						this.sendBackward()
+						this.moveSelectedLayer('backward')
 					} else {
-						this.sendToBack()
+						this.moveSelectedLayer('back')
 					}
 					this.renderToolbar()
 				},
@@ -390,14 +396,14 @@ export class AnnotationEditorOverlay {
 
 		event.preventDefault()
 		event.stopPropagation()
-		const point = this.pointerPoint(event)
+		const point = pointerPoint(this.svgEl, event)
 
 		if (isDebugEnabled()) {
-			this.logGeometry('pointerdown', event, point)
+			logGeometry(this.svgEl, this.overlayMountEl, this.overlayHost, 'pointerdown', event, point)
 		}
 
 		if (this.tool === 'select') {
-			const selected = this.findElementAtPoint(point)
+			const selected = findElementAtPoint(this.scene, point)
 			this.selectedId = selected?.id ?? null
 			if (selected?.type === 'text' && this.isSelectDoubleClick(point, selected.id, event)) {
 				this.startInlineTextEditor(selected)
@@ -407,7 +413,7 @@ export class AnnotationEditorOverlay {
 			}
 			this.rememberSelectClick(point, selected?.id ?? null, event)
 
-			const handle = this.findSelectionHandleAtPoint(point)
+			const handle = findSelectionHandleAtPoint(this.scene, this.selectedId, point)
 			if (this.selectedId && handle) {
 				const selectedElement = this.scene.elements.find(
 					(element) => element.id === this.selectedId
@@ -453,7 +459,7 @@ export class AnnotationEditorOverlay {
 		}
 
 		if (this.tool === 'text') {
-			const selected = this.findTextElementAtPoint(point)
+			const selected = findTextElementAtPoint(this.scene, point)
 			if (selected) {
 				this.selectedId = selected.id
 				this.startInlineTextEditor(selected)
@@ -466,7 +472,7 @@ export class AnnotationEditorOverlay {
 		}
 
 		if (this.tool === 'eraser') {
-			const selected = this.findElementAtPoint(point)
+			const selected = findElementAtPoint(this.scene, point)
 			if (selected) {
 				this.commitSceneMutation({
 					elements: this.scene.elements.filter((element) => element.id !== selected.id)
@@ -486,7 +492,7 @@ export class AnnotationEditorOverlay {
 		this.selectedId = null
 		this.draftElement = createDraftElement(
 			this.tool,
-			this.penPoint(point, event),
+			penPoint(point, event),
 			this.styleForNewElement(),
 			event
 		)
@@ -500,7 +506,7 @@ export class AnnotationEditorOverlay {
 		}
 
 		const selected =
-			this.findEventTextElement(event) ?? this.findElementAtPoint(this.pointerPoint(event))
+			findEventTextElement(this.scene, event) ?? findElementAtPoint(this.scene, pointerPoint(this.svgEl, event))
 		if (selected?.type !== 'text') {
 			return
 		}
@@ -534,14 +540,6 @@ export class AnnotationEditorOverlay {
 		this.lastSelectClick = { time: event.timeStamp, point, elementId }
 	}
 
-	private findEventTextElement(event: MouseEvent): TextAnnotationElement | null {
-		const target =
-			event.target instanceof Element ? event.target.closest('[data-annotation-id]') : null
-		const id = target?.getAttr('data-annotation-id')
-		const element = id ? this.scene.elements.find((candidate) => candidate.id === id) : null
-		return element?.type === 'text' ? element : null
-	}
-
 	private handlePointerMove = (event: PointerEvent) => {
 		if (!this.isDrawingMode) {
 			return
@@ -551,7 +549,7 @@ export class AnnotationEditorOverlay {
 			return
 		}
 
-		const point = this.pointerPoint(event)
+		const point = pointerPoint(this.svgEl, event)
 		if ((this.tool === 'select' || this.tool === 'text') && this.activePointerId === null) {
 			this.updateElementHover(point)
 			return
@@ -561,7 +559,11 @@ export class AnnotationEditorOverlay {
 		event.stopPropagation()
 
 		if (this.interaction) {
-			this.applyInteraction(point)
+			const result = applyInteraction(this.interaction, point, this.interaction.baseScene)
+			if (result) {
+				this.scene = result
+				this.interaction.didMutate = true
+			}
 			this.renderScene()
 			return
 		}
@@ -575,7 +577,7 @@ export class AnnotationEditorOverlay {
 			const lastPoint = points.at(-1)
 			if (!lastPoint || distance(lastPoint, point) >= 1) {
 				this.draftElement = createFreeDrawElement(
-					[...points, this.penPoint(point, event)],
+					[...points, penPoint(point, event)],
 					styleForElement(this.draftElement),
 					this.draftElement.simulatePressure ?? true
 				)
@@ -698,6 +700,11 @@ export class AnnotationEditorOverlay {
 		return true
 	}
 
+	private startPointerCapture(event: PointerEvent) {
+		this.svgEl.setPointerCapture(event.pointerId)
+		this.activePointerId = event.pointerId
+	}
+
 	// -- Undo / redo ------------------------------------------------------
 
 	private undo() {
@@ -745,6 +752,14 @@ export class AnnotationEditorOverlay {
 		this.scheduleSave()
 	}
 
+	private pushUndoState(scene: AnnotationScene) {
+		this.undoStack.push(cloneScene(scene))
+		if (this.undoStack.length > 100) {
+			this.undoStack.shift()
+		}
+		this.redoStack = []
+	}
+
 	private deleteSelected() {
 		if (!this.selectedId) {
 			return
@@ -769,22 +784,6 @@ export class AnnotationEditorOverlay {
 		this.renderScene()
 	}
 
-	private bringForward() {
-		this.moveSelectedLayer('forward')
-	}
-
-	private sendBackward() {
-		this.moveSelectedLayer('backward')
-	}
-
-	private bringToFront() {
-		this.moveSelectedLayer('front')
-	}
-
-	private sendToBack() {
-		this.moveSelectedLayer('back')
-	}
-
 	private moveSelectedLayer(direction: LayerDirection) {
 		const nextScene = moveElementLayer(this.scene, this.selectedId, direction)
 		if (!nextScene) {
@@ -793,127 +792,6 @@ export class AnnotationEditorOverlay {
 
 		this.commitSceneMutation(nextScene)
 		this.renderScene()
-	}
-
-	private pushUndoState(scene: AnnotationScene) {
-		this.undoStack.push(cloneScene(scene))
-		if (this.undoStack.length > 100) {
-			this.undoStack.shift()
-		}
-		this.redoStack = []
-	}
-
-	// -- Interaction ------------------------------------------------------
-
-	private applyInteraction(point: AnnotationPoint) {
-		const interaction = this.interaction
-		if (!interaction) {
-			return
-		}
-
-		const dx = point.x - interaction.startPoint.x
-		const dy = point.y - interaction.startPoint.y
-		if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && interaction.type !== 'rotate') {
-			return
-		}
-
-		this.scene = {
-			elements: interaction.baseScene.elements.map((element) => {
-				if (element.id !== interaction.elementId) {
-					return element
-				}
-
-				if (interaction.type === 'move') {
-					return moveElement(element, dx, dy)
-				}
-
-				if (interaction.type === 'rotate') {
-					return this.rotateElement(element, point, interaction)
-				}
-
-				return resizeElementFromPointer(
-					element,
-					interaction.handle,
-					point,
-					interaction.lockAspectRatio ?? false
-				)
-			})
-		}
-		interaction.didMutate = true
-	}
-
-	private rotateElement(
-		element: AnnotationElement,
-		point: AnnotationPoint,
-		interaction: InteractionState
-	): AnnotationElement {
-		if (
-			!interaction.rotationCenter ||
-			typeof interaction.startPointerAngle !== 'number' ||
-			typeof interaction.startAngle !== 'number'
-		) {
-			return element
-		}
-
-		const currentPointerAngle = Math.atan2(
-			point.y - interaction.rotationCenter.y,
-			point.x - interaction.rotationCenter.x
-		)
-		const angle = normalizeRadians(
-			interaction.startAngle + currentPointerAngle - interaction.startPointerAngle
-		)
-		return bumpElementVersion({
-			...element,
-			angle: interaction.lockAspectRatio
-				? Math.round(angle / SHIFT_LOCKING_ANGLE) * SHIFT_LOCKING_ANGLE
-				: angle
-		})
-	}
-
-	// -- Pointer helpers --------------------------------------------------
-
-	private pointerPoint(event: MouseEvent): AnnotationPoint {
-		const rect = this.svgEl.getBoundingClientRect()
-		const width = this.svgEl.viewBox.baseVal.width || rect.width
-		const height = this.svgEl.viewBox.baseVal.height || rect.height
-		const point = {
-			x: ((event.clientX - rect.left) * width) / rect.width,
-			y: ((event.clientY - rect.top) * height) / rect.height
-		}
-
-		if (isDebugEnabled() && event.type !== 'pointermove') {
-			console.debug('[annotation] pointer-point', {
-				eventType: event.type,
-				clientX: event.clientX,
-				clientY: event.clientY,
-				svgLeft: rect.left,
-				svgTop: rect.top,
-				svgCssWidth: rect.width,
-				svgCssHeight: rect.height,
-				viewBoxWidth: width,
-				viewBoxHeight: height,
-				pointX: point.x,
-				pointY: point.y
-			})
-		}
-
-		return point
-	}
-
-	private penPoint(point: AnnotationPoint, event: PointerEvent): AnnotationPoint {
-		if (event.pressure === 0.5) {
-			return point
-		}
-
-		return {
-			...point,
-			pressure: event.pressure
-		}
-	}
-
-	private startPointerCapture(event: PointerEvent) {
-		this.svgEl.setPointerCapture(event.pointerId)
-		this.activePointerId = event.pointerId
 	}
 
 	// -- Style management -------------------------------------------------
@@ -929,85 +807,24 @@ export class AnnotationEditorOverlay {
 		return selected ? styleForElement(selected) : this.currentStyle
 	}
 
-	private applyStyleUpdate(style: Partial<Required<AnnotationStyle>>) {
-		Object.assign(this.currentStyle, style)
-		if (!this.selectedId) {
-			return
-		}
-
-		let didUpdate = false
-		const elements = this.scene.elements.map((element) => {
-			if (element.id !== this.selectedId) {
-				return element
-			}
-
-			didUpdate = true
-			return this.applyStyleToElement(element, style)
-		})
-
-		if (didUpdate) {
-			this.commitSceneMutation({ elements })
+	private applyOverlayStyleUpdate(style: Partial<Required<AnnotationStyle>>) {
+		const result = applyStyleUpdate(this.currentStyle, this.scene, this.selectedId, style)
+		this.currentStyle = result.currentStyle
+		if (result.elements) {
+			this.commitSceneMutation({ elements: result.elements })
 		}
 	}
 
-	private applyStyleToElement(
-		element: AnnotationElement,
-		style: Partial<Required<AnnotationStyle>>
-	): AnnotationElement {
-		const next: AnnotationElement = {
-			...element,
-			...(style.strokeColor !== undefined ? { strokeColor: style.strokeColor } : {}),
-			...(style.backgroundColor !== undefined
-				? { backgroundColor: style.backgroundColor }
-				: {}),
-			...(style.fillStyle !== undefined ? { fillStyle: style.fillStyle } : {}),
-			...(style.strokeWidth !== undefined ? { strokeWidth: style.strokeWidth } : {}),
-			...(style.strokeStyle !== undefined ? { strokeStyle: style.strokeStyle } : {}),
-			...(style.roughness !== undefined ? { roughness: style.roughness } : {}),
-			...(style.opacity !== undefined ? { opacity: style.opacity } : {}),
-			...(style.edgeStyle !== undefined
-				? { roundness: style.edgeStyle === 'round' ? { type: 3 } : null }
-				: {})
-		}
-
-		return bumpElementVersion(next)
-	}
-
-	private applyTextPropertyUpdate(props: {
+	private applyOverlayTextPropertyUpdate(props: {
 		textAlign?: 'left' | 'center' | 'right'
 		fontSize?: number
 		fontFamily?: number
 	}) {
-		if (!this.selectedId) {
-			return
-		}
-
-		let didUpdate = false
-		let updatedTextElement: TextAnnotationElement | undefined
-		const elements = this.scene.elements.map((element) => {
-			if (element.id !== this.selectedId || element.type !== 'text') {
-				return element
-			}
-
-			didUpdate = true
-			const next: TextAnnotationElement = { ...element }
-			if (props.textAlign !== undefined) {
-				next.textAlign = props.textAlign
-			}
-			if (props.fontSize !== undefined) {
-				next.fontSize = props.fontSize
-			}
-			if (props.fontFamily !== undefined) {
-				next.fontFamily = props.fontFamily
-			}
-			updatedTextElement = resizeTextBoxForStyleChange(next)
-			return updatedTextElement
-		})
-
-		if (didUpdate) {
-			this.commitSceneMutation({ elements })
-			if (updatedTextElement && updatedTextElement.id === this.textEditor.currentElementId) {
-				this.textEditor.syncStyle(updatedTextElement, this.markdownFontSizePx)
+		const result = applyTextPropertyUpdate(this.scene, this.selectedId, props)
+		if (result) {
+			this.commitSceneMutation({ elements: result.elements })
+			if (result.updatedTextElement && result.updatedTextElement.id === this.textEditor.currentElementId) {
+				this.textEditor.syncStyle(result.updatedTextElement, this.markdownFontSizePx)
 			}
 		}
 	}
@@ -1050,58 +867,15 @@ export class AnnotationEditorOverlay {
 		}
 	}
 
-	// -- Hit testing ------------------------------------------------------
-
-	private findElementAtPoint(point: AnnotationPoint): AnnotationElement | null {
-		for (let index = this.scene.elements.length - 1; index >= 0; index--) {
-			const candidate = this.scene.elements[index]
-			if (!candidate) {
-				continue
-			}
-
-			const element = normalizeElementGeometry(candidate)
-			if (containsPoint(element, point)) {
-				return element
-			}
-		}
-		return null
-	}
-
-	private findTextElementAtPoint(point: AnnotationPoint): TextAnnotationElement | null {
-		const element = this.findElementAtPoint(point)
-		return element?.type === 'text' ? element : null
-	}
-
-	private findSelectionHandleAtPoint(point: AnnotationPoint): SelectionHandle | null {
-		const selected = this.scene.elements.find((element) => element.id === this.selectedId)
-		if (!selected) {
-			return null
-		}
-
-		const handles = transformHandlesForElement(selected)
-		for (const handle of selectionHandlesForElement(selected)) {
-			const center = handles[handle] ?? selectionHandleCenter(selected, handle)
-			if (
-				center &&
-				Math.abs(point.x - center.x) <= SELECTION_HANDLE_SIZE &&
-				Math.abs(point.y - center.y) <= SELECTION_HANDLE_SIZE
-			) {
-				return handle
-			}
-		}
-
-		return resizeEdgeAtPoint(selected, point)
-	}
-
 	// -- Cursor / hover ---------------------------------------------------
 
 	private updateElementHover(point: AnnotationPoint) {
-		const handle = this.tool === 'select' ? this.findSelectionHandleAtPoint(point) : null
+		const handle = this.tool === 'select' ? findSelectionHandleAtPoint(this.scene, this.selectedId, point) : null
 		const hoverElement = handle
 			? null
 			: this.tool === 'text'
-				? this.findTextElementAtPoint(point)
-				: this.findElementAtPoint(point)
+				? findTextElementAtPoint(this.scene, point)
+				: findElementAtPoint(this.scene, point)
 		const hoverElementId = hoverElement?.id ?? null
 		if (handle === this.hoverHandle && hoverElementId === this.hoverElementId) {
 			return
@@ -1136,6 +910,7 @@ export class AnnotationEditorOverlay {
 		renderOverlayScene(this.svgEl, this.getRenderState(), {
 			app: self.plugin.app,
 			view: self.view,
+			component: self.plugin,
 			get isDestroyed() { return self.isDestroyed },
 			get selectedId() { return self.selectedId }
 		})
@@ -1154,51 +929,21 @@ export class AnnotationEditorOverlay {
 		}
 	}
 
-	private sizeToDocumentPlane() {
-		sizeOverlayToDocumentPlane(
-			this.view,
-			this.overlayHost,
-			this.overlayMountEl,
-			this.rootEl,
-			this.svgEl
-		)
-	}
-
 	// -- Save / load ------------------------------------------------------
 
 	private scheduleSave() {
-		if (this.saveTimer !== null) {
-			window.clearTimeout(this.saveTimer)
-		}
-
-		this.saveTimer = window.setTimeout(() => {
-			this.saveTimer = null
-			void this.save()
-		}, SCENE_SAVE_DELAY_MS)
+		this.saveTimer = scheduleOverlaySave(this.saveTimer, () => void this.save())
 	}
 
 	private flushSave() {
-		if (this.saveTimer === null) {
-			return
-		}
-
-		window.clearTimeout(this.saveTimer)
-		this.saveTimer = null
-		void this.save()
+		this.saveTimer = flushOverlaySave(this.saveTimer, () => void this.save())
 	}
 
 	private async save() {
-		const file = this.file
-		if (!file) {
+		if (!this.file) {
 			return
 		}
-
-		const scene = this.toPersistedScene(normalizeScene(this.scene))
-		const hasElements = scene.elements.length > 0
-		await this.plugin.saveAnnotationData(file, {
-			coordinateSpace: SCENE_COORDINATE_SPACE,
-			...(hasElements ? { scene } : {})
-		})
+		await saveScene(this.saveHost, this.file, this.scene, this.view, this.svgEl)
 	}
 
 	private async load() {
@@ -1208,73 +953,17 @@ export class AnnotationEditorOverlay {
 			return
 		}
 
-		const data = await this.plugin.loadAnnotationData(file)
-		if (
-			this.isDestroyed ||
-			!this.isForFile(this.view.file) ||
-			this.mutationVersion !== loadVersion
-		) {
-			return
+		const scene = await loadScene(
+			this.saveHost,
+			file,
+			loadVersion,
+			() => !this.isDestroyed && this.isForFile(this.view.file) && this.mutationVersion === loadVersion,
+			this.view,
+			this.svgEl
+		)
+		if (scene) {
+			this.scene = scene
+			this.renderScene()
 		}
-
-		const sceneData =
-			!data.coordinateSpace || data.coordinateSpace === SCENE_COORDINATE_SPACE
-				? data.scene
-				: undefined
-		const scene = normalizeScene(sceneData)
-		this.scene = scene.origin === 'center' ? this.fromPersistedScene(scene) : scene
-		this.renderScene()
-	}
-
-	private toPersistedScene(scene: AnnotationScene): AnnotationScene {
-		return scene.origin === 'center'
-			? this.translateSceneX(scene, getEditorSizerCenterX(this.view, this.svgEl), 'left')
-			: { ...scene, origin: 'left' }
-	}
-
-	private fromPersistedScene(scene: AnnotationScene): AnnotationScene {
-		return this.translateSceneX(scene, getEditorSizerCenterX(this.view, this.svgEl), 'left')
-	}
-
-	private translateSceneX(
-		scene: AnnotationScene,
-		dx: number,
-		origin: AnnotationScene['origin']
-	): AnnotationScene {
-		return {
-			...scene,
-			origin,
-			elements: scene.elements.map((element) => ({
-				...element,
-				x: element.x + dx
-			}))
-		}
-	}
-
-	// -- Debug ------------------------------------------------------------
-
-	private logGeometry(reason: string, event: PointerEvent, point: AnnotationPoint) {
-		const svgRect = this.svgEl.getBoundingClientRect()
-		const mountRect = this.overlayMountEl.getBoundingClientRect()
-		const hostRect = this.overlayHost.getBoundingClientRect()
-
-		console.debug({
-			debugVersion: DEBUG_GEOMETRY_VERSION,
-			reason,
-			pointerX: event.clientX,
-			pointerY: event.clientY,
-			pointX: point.x,
-			pointY: point.y,
-			svgTop: svgRect.top,
-			svgLeft: svgRect.left,
-			svgWidth: svgRect.width,
-			svgHeight: svgRect.height,
-			mountTop: mountRect.top,
-			mountLeft: mountRect.left,
-			hostTop: hostRect.top,
-			hostLeft: hostRect.left,
-			hostScrollTop: this.overlayHost.scrollTop,
-			hostScrollLeft: this.overlayHost.scrollLeft
-		})
 	}
 }

@@ -28,14 +28,19 @@ obsidian-annotation/
 | Task | Location | Notes |
 |------|----------|-------|
 | Obsidian lifecycle, commands, ribbon | `src/main.ts` | `AnnotationPlugin`; keep new code orchestration-only |
-| Overlay UI, pointer/keyboard flow | `src/overlay.ts` | `AnnotationEditorOverlay` orchestrator; delegates to overlay-* modules |
+| Overlay UI, pointer/keyboard flow | `src/overlay.ts` | `AnnotationEditorOverlay` orchestrator; delegates to `overlay/` modules |
 | SVG rendering, markdown text nodes | `src/overlay/rendering.ts` | Pure SVG creation functions; `renderOverlayScene` |
 | Inline text editing | `src/overlay/text-editor.ts` | `OverlayTextEditor` class; DOM lifecycle for textarea |
 | Cursor / eraser cursor | `src/overlay/cursor.ts` | `createEraserCursor`, `resolveCursor` |
+| Hit testing | `src/overlay/hit-test.ts` | `findElementAtPoint`, `findSelectionHandleAtPoint` |
+| Pointer coordinates, debug | `src/overlay/pointer.ts` | `pointerPoint`, `penPoint`, geometry logging |
+| Interaction transforms | `src/overlay/interaction.ts` | `applyInteraction`, `rotateElement` |
+| Style updates | `src/overlay/style.ts` | `applyStyleUpdate`, `applyTextPropertyUpdate` |
+| Save / load | `src/overlay/save.ts` | `saveScene`, `loadScene`, coordinate translation |
 | Overlay constants, utilities | `src/overlay/utils.ts` | `InteractionState`, angle math, keyboard guards |
-| Toolbar UI | `src/overlay-toolbar.ts` | Tool buttons, style panel toggle |
-| Style controls | `src/overlay-style-controls.ts` | Shape style panel (stroke, fill, roughness, etc.) |
-| Text style controls | `src/overlay-text-style-controls.ts` | Text-specific panel (font, size, align) |
+| Toolbar UI | `src/overlay/toolbar.ts` | Tool buttons, style panel toggle |
+| Style controls | `src/overlay/style-controls.ts` | Shape style panel (stroke, fill, roughness, etc.) |
+| Text style controls | `src/overlay/text-style-controls.ts` | Text-specific panel (font, size, align) |
 | Annotation data model | `src/drawing/types.ts` | Persisted element shape; preserve compatibility |
 | Element creation/normalization | `src/drawing/excalidraw-adapter.ts` | Use before constructing Excalidraw-like elements manually |
 | Excalidraw imports | `src/drawing/excalidraw.ts` | Facade for `@excalidraw/*`; keep direct package imports centralized |
@@ -49,7 +54,7 @@ obsidian-annotation/
 
 | Symbol | Type | Location | Role |
 |--------|------|----------|------|
-| `AnnotationEditorOverlay` | class | `src/overlay.ts` | Editor overlay orchestrator; delegates to overlay-* modules |
+| `AnnotationEditorOverlay` | class | `src/overlay.ts` | Editor overlay orchestrator; delegates to `overlay/` modules |
 | `OverlayTextEditor` | class | `src/overlay/text-editor.ts` | Inline text editor DOM lifecycle and commit/cancel |
 | `renderOverlayScene` | function | `src/overlay/rendering.ts` | SVG scene rendering from overlay state |
 | `AnnotationPlugin` | class | `src/main.ts` | Obsidian plugin entry, commands, events, persistence |

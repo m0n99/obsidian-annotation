@@ -129,8 +129,15 @@ export function renderOverlayToolbar(
 
 	// Toggle button (separate element from the dropdown panel)
 	toggleEl.empty()
+	const isDrawingTool =
+		state.tool !== 'select' && state.tool !== 'eraser' && state.tool !== 'image'
+	const showToggle = state.hasSelection || isDrawingTool
 	toggleEl.toggleClass('has-selection', state.hasSelection)
-	if (!state.hasSelection) {
+	toggleEl.toggleClass('show-toggle', showToggle)
+
+	if (!showToggle) {
+		stylePanelEl.empty()
+		stylePanelEl.toggleClass('is-open', false)
 		return
 	}
 

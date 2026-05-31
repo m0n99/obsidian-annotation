@@ -22,7 +22,6 @@ import {
 	createRoughnessCartoonistIcon,
 	createSendBackwardIcon,
 	createSendToBackIcon,
-	createStrokeIcon,
 	createStrokeStyleDashedIcon,
 	createStrokeStyleDottedIcon,
 	createStrokeStyleSolidIcon,
@@ -267,15 +266,33 @@ export function renderStyleControls(
 	opacityInput.value = String(state.style.opacity)
 	const opacityValue = opacityRow.createDiv({
 		cls: 'value-bubble annotation-opacity-value',
-		text: `${state.style.opacity}%`
+		text: state.style.opacity !== 0 ? String(state.style.opacity) : ''
 	})
-	opacityValue.style.setProperty('left', `${state.style.opacity}%`)
 	opacityRow.createDiv({ cls: 'zero-label', text: '0' })
+
+	const positionOpacityBubble = () => {
+		const inputWidth = opacityInput.offsetWidth
+		const thumbSize =
+			parseFloat(
+				getComputedStyle(opacityInput).getPropertyValue('--slider-thumb-size')
+			) || 16
+		const progress = state.style.opacity
+		const pos = (progress / 100) * (inputWidth - thumbSize) + thumbSize / 2
+		opacityValue.style.left = `${pos}px`
+	}
+	positionOpacityBubble()
+
 	opacityInput.addEventListener('input', () => {
 		const value = parseInt(opacityInput.value, 10)
 		callbacks.updateOpacity(value)
-		opacityValue.textContent = `${value}%`
-		opacityValue.style.setProperty('left', `${value}%`)
+		opacityValue.textContent = value !== 0 ? String(value) : ''
+		const inputWidth = opacityInput.offsetWidth
+		const thumbSize =
+			parseFloat(
+				getComputedStyle(opacityInput).getPropertyValue('--slider-thumb-size')
+			) || 16
+		const pos = (value / 100) * (inputWidth - thumbSize) + thumbSize / 2
+		opacityValue.style.left = `${pos}px`
 	})
 
 	const layersFieldset = container.createEl('fieldset')
@@ -363,16 +380,5 @@ function renderColorRow(
 	} else if (!isColorDark(getColor(), COLOR_OUTLINE_CONTRAST_THRESHOLD)) {
 		currentBtn.addClass('has-outline')
 	}
-	const outlineEl = currentBtn.createDiv({ cls: 'color-picker__button-outline' })
-	if (mode === 'stroke' && getColor() !== 'transparent') {
-		const background = currentBtn.createDiv({ cls: 'color-picker__button-background' })
-		const iconColor = isColorDark(getColor(), COLOR_OUTLINE_CONTRAST_THRESHOLD)
-			? '#fff'
-			: '#111'
-		const icon = createStrokeIcon()
-		icon.style.color = iconColor
-		background.appendChild(icon)
-	} else if (getColor() === 'transparent') {
-		outlineEl.setText('/')
-	}
+	currentBtn.createDiv({ cls: 'color-picker__button-outline' })
 }

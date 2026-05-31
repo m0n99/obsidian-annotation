@@ -361,6 +361,9 @@ export class AnnotationEditorOverlay {
 		) {
 			return
 		}
+		if (isAppLevelShortcut(event)) {
+			return
+		}
 
 		if (this.handleToolShortcut(event) || this.handleUndoRedoShortcut(event)) {
 			event.stopPropagation()
@@ -1697,6 +1700,10 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
 		(target.isContentEditable ||
 			!!target.closest('input, textarea, select, [contenteditable="true"]'))
 	)
+}
+
+function isAppLevelShortcut(event: KeyboardEvent) {
+	return event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'q'
 }
 
 function radiansToDegrees(value: number) {

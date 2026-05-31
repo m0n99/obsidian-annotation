@@ -15,7 +15,7 @@ export function measureTextareaContent(textarea: HTMLTextAreaElement) {
 	const lineHeight = parseLineHeight(textarea.style.lineHeight, fontSize)
 	const value = textarea.value || 'Text'
 	if (textarea.dataset.annotationAutoResize === 'false') {
-		return measureWrappedText(
+		return measureWrappedTextContent(
 			value,
 			font,
 			lineHeight,
@@ -23,16 +23,25 @@ export function measureTextareaContent(textarea: HTMLTextAreaElement) {
 		)
 	}
 
-	const metrics = measureText(value, font as any, (lineHeight / fontSize) as any)
+	return measureTextContent(value, font, lineHeight / fontSize)
+}
+
+export function measureTextContent(value: string, font: string, lineHeight: number) {
+	const metrics = measureText(value || 'Text', font as any, lineHeight as any)
 	return {
 		width: Math.ceil(metrics.width),
 		height: Math.ceil(metrics.height)
 	}
 }
 
-function measureWrappedText(value: string, font: string, lineHeight: number, width: number) {
+export function measureWrappedTextContent(
+	value: string,
+	font: string,
+	lineHeight: number,
+	width: number
+) {
 	const mirror = document.createElement('div')
-	mirror.textContent = value
+	mirror.textContent = value || 'Text'
 	Object.assign(mirror.style, {
 		position: 'fixed',
 		top: '0',

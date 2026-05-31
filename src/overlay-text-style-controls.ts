@@ -1,10 +1,8 @@
 import type { AnnotationStyle } from './drawing/types'
+import { TEXT_FONT_SIZES } from './drawing/types'
 import {
-	COLOR_OUTLINE_CONTRAST_THRESHOLD,
 	DEFAULT_ELEMENT_STROKE_PICKS,
-	FONT_FAMILY,
-	FONT_SIZES,
-	isColorDark
+	FONT_FAMILY
 } from './drawing/excalidraw'
 import {
 	createBringForwardIcon,
@@ -19,12 +17,16 @@ import {
 	createFontFamilyNormalIcon,
 	createSendBackwardIcon,
 	createSendToBackIcon,
-	createStrokeIcon,
 	createTextAlignCenterIcon,
 	createTextAlignLeftIcon,
 	createTextAlignRightIcon,
 	createTrashIcon
 } from './drawing/icons'
+import {
+	renderButtonListFieldset,
+	renderColorRow,
+	renderOpacitySlider
+} from './overlay-shared-controls'
 import type { OverlayLayerDirection } from './overlay-toolbar'
 
 export type TextStyleControlsState = {
@@ -57,10 +59,10 @@ export function renderTextStyleControls(
 		{ value: FONT_FAMILY.Cascadia, icon: createFontFamilyCodeIcon, title: 'Code' }
 	]
 	const fontSizes: Array<{ value: number; icon: () => SVGSVGElement; title: string }> = [
-		{ value: FONT_SIZES.sm, icon: createFontSizeSmallIcon, title: 'Small' },
-		{ value: FONT_SIZES.md, icon: createFontSizeMediumIcon, title: 'Medium' },
-		{ value: FONT_SIZES.lg, icon: createFontSizeLargeIcon, title: 'Large' },
-		{ value: FONT_SIZES.xl, icon: createFontSizeExtraLargeIcon, title: 'Very large' }
+		{ value: TEXT_FONT_SIZES.sm, icon: createFontSizeSmallIcon, title: 'Small' },
+		{ value: TEXT_FONT_SIZES.md, icon: createFontSizeMediumIcon, title: 'Medium' },
+		{ value: TEXT_FONT_SIZES.lg, icon: createFontSizeLargeIcon, title: 'Large' },
+		{ value: TEXT_FONT_SIZES.xl, icon: createFontSizeExtraLargeIcon, title: 'Very large' }
 	]
 	const textAligns: Array<{
 		value: 'left' | 'center' | 'right'
@@ -109,8 +111,7 @@ export function renderTextStyleControls(
 		strokeFieldset,
 		strokeColors,
 		'Stroke',
-		'stroke',
-		(color) => {
+		(color: string) => {
 			callbacks.updateStyle({ strokeColor: color })
 		},
 		() => state.style.strokeColor
@@ -170,132 +171,8 @@ export function renderTextStyleControls(
 		})
 	}
 
-	// Opacity
-	const opacityLabel = container.createEl('label', { cls: 'control-label' })
-	opacityLabel.createSpan({ text: 'Opacity' })
-	const opacityRow = opacityLabel.createDiv({ cls: 'range-wrapper' })
-	const opacityInput = opacityRow.createEl('input', {
-		type: 'range',
-		cls: 'range-input annotation-opacity-slider',
-		attr: {
-			min: '0',
-			max: '100',
-			step: '10',
-			'data-testid': 'opacity',
-			'aria-label': 'Opacity'
-		}
-	})
-	opacityInput.value = String(state.style.opacity)
-	const opacityValue = opacityRow.createDiv({
-		cls: 'value-bubble annotation-opacity-value',
-		text: `${state.style.opacity}%`
-	})
-	opacityValue.style.setProperty('left', `${state.style.opacity}%`)
-	opacityRow.createDiv({ cls: 'zero-label', text: '0' })
-	opacityInput.addEventListener('input', () => {
-		const value = parseInt(opacityInput.value, 10)
-		callbacks.updateOpacity(value)
-		opacityValue.textContent = `${value}%`
-		opacityValue.style.setProperty('left', `${value}%`)
-	})
+	renderOpacitySlider(container, () => state.style.opacity, callbacks.updateOpacity)
 
-	// Layers
-	const layersFieldset = container.createEl('fieldset')
-	layersFieldset.createEl('legend', { text: 'Layers' })
-	const layersList = layersFieldset.createDiv({ cls: 'buttonList' })
-	for (const item of layers) {
-		const btn = layersList.createEl('button', {
-			type: 'button',
-			attr: { title: item.title, 'aria-label': item.title }
-		})
-		btn.appendChild(item.icon())
-		btn.addEventListener('click', (event) => {
-			event.preventDefault()
-			event.stopPropagation()
-			item.action()
-		})
-	}
-
-	// Actions
-	const actionsFieldset = container.createEl('fieldset')
-	actionsFieldset.createEl('legend', { text: 'Actions' })
-	const actionsList = actionsFieldset.createDiv({ cls: 'buttonList' })
-	for (const item of actions) {
-		const btn = actionsList.createEl('button', {
-			type: 'button',
-			attr: { title: item.title, 'aria-label': item.title }
-		})
-		btn.appendChild(item.icon())
-		btn.addEventListener('click', (event) => {
-			event.preventDefault()
-			event.stopPropagation()
-			item.action()
-		})
-	}
-}
-
-function renderColorRow(
-	container: HTMLElement,
-	colors: readonly string[],
-	label: string,
-	mode: 'stroke' | 'background',
-	setColor: (color: string) => void,
-	getColor: () => string
-) {
-	const pickerContainer = container.createDiv({ cls: 'color-picker-container' })
-	const topPicks = pickerContainer.createDiv({ cls: 'color-picker__top-picks' })
-
-	for (const color of colors) {
-		const isTransparent = color === 'transparent'
-		const btn = topPicks.createEl('button', {
-			cls: 'color-picker__button',
-			type: 'button',
-			attr: { title: color, 'aria-label': `${label} ${color}` }
-		})
-		btn.style.setProperty('--swatch-color', color)
-		if (isTransparent) {
-			btn.addClass('is-transparent', 'has-outline')
-		} else if (!isColorDark(color, COLOR_OUTLINE_CONTRAST_THRESHOLD)) {
-			btn.addClass('has-outline')
-		}
-		btn.createDiv({ cls: 'color-picker__button-outline' })
-		if (getColor() === color) {
-			btn.addClass('active')
-		}
-		btn.addEventListener('click', (event) => {
-			event.preventDefault()
-			event.stopPropagation()
-			setColor(color)
-		})
-	}
-
-	// Vertical divider
-	pickerContainer.createDiv({
-		cls: 'color-picker-divider'
-	})
-
-	// Current color indicator button
-	const currentBtn = pickerContainer.createEl('button', {
-		cls: 'color-picker__button active-color',
-		type: 'button',
-		attr: { title: `Current ${label}`, 'aria-label': `${label} current` }
-	})
-	currentBtn.style.setProperty('--swatch-color', getColor())
-	if (getColor() === 'transparent') {
-		currentBtn.addClass('is-transparent', 'has-outline')
-	} else if (!isColorDark(getColor(), COLOR_OUTLINE_CONTRAST_THRESHOLD)) {
-		currentBtn.addClass('has-outline')
-	}
-	const outlineEl = currentBtn.createDiv({ cls: 'color-picker__button-outline' })
-	if (mode === 'stroke' && getColor() !== 'transparent') {
-		const background = currentBtn.createDiv({ cls: 'color-picker__button-background' })
-		const iconColor = isColorDark(getColor(), COLOR_OUTLINE_CONTRAST_THRESHOLD)
-			? '#fff'
-			: '#111'
-		const icon = createStrokeIcon()
-		icon.style.color = iconColor
-		background.appendChild(icon)
-	} else if (getColor() === 'transparent') {
-		outlineEl.setText('/')
-	}
+	renderButtonListFieldset(container, 'Layers', layers)
+	renderButtonListFieldset(container, 'Actions', actions)
 }

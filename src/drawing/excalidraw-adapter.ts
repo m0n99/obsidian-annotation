@@ -1,4 +1,6 @@
 import {
+	TEXT_DEFAULT_FONT_SIZE,
+	TEXT_MARKDOWN_DEFAULT_FONT_SIZE,
 	type AnnotationElement,
 	type AnnotationPoint,
 	type AnnotationStyle,
@@ -9,17 +11,20 @@ import {
 } from './types'
 import {
 	DEFAULT_ELEMENT_PROPS,
-	DEFAULT_FONT_SIZE,
 	FONT_FAMILY,
 	bumpVersion,
+	getFontString,
 	getLineHeight,
 	hashString,
 	newArrowElement,
 	newElement,
 	newFreeDrawElement,
 	newLinearElement,
-	newTextElement
+	newTextElement,
+	wrapText
 } from './excalidraw'
+
+const DEFAULT_ANNOTATION_FONT_FAMILY = FONT_FAMILY.Nunito
 
 export function createElementId() {
 	return `ln_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
@@ -141,8 +146,11 @@ export function createTextElement(
 	width: number,
 	height: number,
 	fontSize: number,
-	style: Required<AnnotationStyle>
+	style: Required<AnnotationStyle>,
+	autoResize = true,
+	fontFamily = DEFAULT_ANNOTATION_FONT_FAMILY
 ): TextAnnotationElement {
+	const displayText = autoResize ? text : wrapAnnotationText(text, width, fontSize, fontFamily)
 	return normalizeElement(
 		newTextElement({
 			id: createElementId(),
@@ -151,15 +159,15 @@ export function createTextElement(
 			y,
 			width,
 			height,
-			text,
+			text: displayText,
 			originalText: text,
 			fontSize,
-			fontFamily: FONT_FAMILY.Virgil,
+			fontFamily,
 			textAlign: 'left',
 			verticalAlign: 'top',
 			containerId: null,
-			autoResize: true,
-			lineHeight: getLineHeight(FONT_FAMILY.Virgil),
+			autoResize,
+			lineHeight: getLineHeight(fontFamily),
 			...styleToExcalidraw(style)
 		} as any)
 	) as TextAnnotationElement
@@ -171,17 +179,43 @@ export function updateTextElement(
 	width: number,
 	height: number,
 	fontSize: number,
-	style: Required<AnnotationStyle>
+	style: Required<AnnotationStyle>,
+	autoResize = element.autoResize !== false
 ): TextAnnotationElement {
+	const fontFamily = element.fontFamily ?? DEFAULT_ANNOTATION_FONT_FAMILY
+	const displayText = autoResize ? text : wrapAnnotationText(text, width, fontSize, fontFamily)
 	return normalizeElement({
 		...element,
-		text,
+		text: displayText,
 		originalText: text,
 		width,
 		height,
 		fontSize,
+		autoResize,
 		...styleToExcalidraw(style)
 	}) as TextAnnotationElement
+}
+
+export function wrapAnnotationText(
+	text: string,
+	width: number,
+	fontSize: number,
+	fontFamily = DEFAULT_ANNOTATION_FONT_FAMILY
+) {
+	return wrapText(text, annotationTextFontString(fontSize, fontFamily), width)
+}
+
+export function annotationTextFontString(
+	fontSize: number,
+	fontFamily = DEFAULT_ANNOTATION_FONT_FAMILY
+) {
+	return getFontString({ fontSize, fontFamily: normalizeAnnotationFontFamily(fontFamily) })
+}
+
+export function normalizeAnnotationFontFamily(fontFamily: number) {
+	return fontFamily === FONT_FAMILY.Virgil
+		? DEFAULT_ANNOTATION_FONT_FAMILY
+		: fontFamily
 }
 
 export function normalizeElement(element: Record<string, unknown>): AnnotationElement {
@@ -259,14 +293,19 @@ export function normalizeElement(element: Record<string, unknown>): AnnotationEl
 			...base,
 			text,
 			originalText: String(base.originalText ?? text),
-			fontSize: numberValue(base.fontSize, DEFAULT_FONT_SIZE),
-			fontFamily: numberValue(base.fontFamily, FONT_FAMILY.Virgil),
+			fontSize:
+				base.fontSize === undefined
+					? TEXT_DEFAULT_FONT_SIZE
+					: numberValue(base.fontSize, TEXT_MARKDOWN_DEFAULT_FONT_SIZE),
+			fontFamily: normalizeAnnotationFontFamily(
+				numberValue(base.fontFamily, DEFAULT_ANNOTATION_FONT_FAMILY)
+			),
 			textAlign:
 				base.textAlign === 'center' || base.textAlign === 'right' ? base.textAlign : 'left',
 			verticalAlign: base.verticalAlign === 'middle' ? 'middle' : 'top',
 			containerId: typeof base.containerId === 'string' ? base.containerId : null,
 			autoResize: base.autoResize !== false,
-			lineHeight: numberValue(base.lineHeight, getLineHeight(FONT_FAMILY.Virgil))
+			lineHeight: numberValue(base.lineHeight, getLineHeight(DEFAULT_ANNOTATION_FONT_FAMILY))
 		} as TextAnnotationElement
 	}
 

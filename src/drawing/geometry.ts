@@ -1,6 +1,6 @@
 import {
 	EXCALIDRAW_TEXT_LINE_HEIGHT,
-	EXCALIDRAW_FONT_FAMILY,
+	EXCALIDRAW_FONT_FAMILY_ID,
 	MIN_SHAPE_SIZE,
 	SELECTION_HANDLE_SIZE,
 	TEXT_DEFAULT_FONT_SIZE,
@@ -15,9 +15,11 @@ import {
 } from './types'
 import {
 	absolutePoints,
+	annotationTextFontString,
 	bumpElementVersion,
 	normalizeElement,
-	toElementsMap
+	toElementsMap,
+	wrapAnnotationText
 } from './excalidraw-adapter'
 import { isBoxElement } from './guards'
 import {
@@ -32,7 +34,7 @@ import {
 } from './excalidraw'
 import { AnnotationSceneAdapter } from './scene-adapter'
 
-const SELECTION_PADDING = 4
+export const SELECTION_PADDING = 4
 
 type TransformDirection = Exclude<SelectionHandle, 'rotation' | 'start' | 'end'>
 
@@ -98,14 +100,7 @@ export function resizeElementFromPointer(
 	)
 
 	if (element.type === 'text') {
-		return bumpElementVersion({
-			...element,
-			x: mutableCopy.x,
-			y: mutableCopy.y,
-			width: Math.max(TEXT_MIN_BOX_WIDTH, mutableCopy.width),
-			height: Math.max(TEXT_MIN_FONT_SIZE * 1.5, mutableCopy.height),
-			autoResize: false
-		})
+		return resizeTextElementFromMutable(element, mutableCopy, handle)
 	}
 
 	return normalizeBoxGeometry(
@@ -325,6 +320,10 @@ export function textFontSize(element: TextAnnotationElement) {
 	return element.fontSize ?? TEXT_DEFAULT_FONT_SIZE
 }
 
+export function textFontFamily(element: TextAnnotationElement) {
+	return element.fontFamily ?? EXCALIDRAW_FONT_FAMILY_ID
+}
+
 export function textBoxWidth(element: TextAnnotationElement) {
 	return Math.max(
 		TEXT_MIN_BOX_WIDTH,
@@ -339,11 +338,50 @@ export function textBoxHeight(element: TextAnnotationElement) {
 	)
 }
 
+function resizeTextElementFromMutable(
+	element: TextAnnotationElement,
+	mutated: TextAnnotationElement,
+	handle: TransformDirection
+): TextAnnotationElement {
+	const nextWidth = Math.max(TEXT_MIN_BOX_WIDTH, mutated.width)
+	const nextHeight = Math.max(TEXT_MIN_FONT_SIZE * 1.5, mutated.height)
+	if (handle === 'e' || handle === 'w') {
+		const fontSize = textFontSize(element)
+		const fontFamily = textFontFamily(element)
+		const originalText = element.originalText ?? element.text
+		return bumpElementVersion({
+			...element,
+			x: mutated.x,
+			y: mutated.y,
+			width: nextWidth,
+			height: nextHeight,
+			fontSize,
+			fontFamily,
+			text: wrapAnnotationText(originalText, nextWidth, fontSize, fontFamily),
+			originalText,
+			autoResize: false
+		})
+	}
+
+	const fontSize = Math.max(TEXT_MIN_FONT_SIZE, mutated.fontSize ?? textFontSize(element))
+	return bumpElementVersion({
+		...element,
+		x: mutated.x,
+		y: mutated.y,
+		width: nextWidth,
+		height: nextHeight,
+		fontSize,
+		text: element.originalText ?? element.text,
+		originalText: element.originalText ?? element.text,
+		autoResize: true
+	})
+}
+
 function measureTextElement(element: TextAnnotationElement) {
 	const fontSize = textFontSize(element)
 	return measureText(
 		element.text || 'Text',
-		`${fontSize}px ${EXCALIDRAW_FONT_FAMILY}` as any,
+		annotationTextFontString(fontSize, textFontFamily(element)),
 		EXCALIDRAW_TEXT_LINE_HEIGHT as any
 	)
 }

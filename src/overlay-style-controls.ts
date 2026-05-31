@@ -1,11 +1,9 @@
 import type { AnnotationStyle } from './drawing/types'
 import {
-	COLOR_OUTLINE_CONTRAST_THRESHOLD,
 	DEFAULT_ELEMENT_BACKGROUND_PICKS,
 	DEFAULT_ELEMENT_STROKE_PICKS,
 	ROUGHNESS,
-	STROKE_WIDTH,
-	isColorDark
+	STROKE_WIDTH
 } from './drawing/excalidraw'
 import {
 	createBringForwardIcon,
@@ -30,6 +28,11 @@ import {
 	createStrokeWidthThinIcon,
 	createTrashIcon
 } from './drawing/icons'
+import {
+	renderButtonListFieldset,
+	renderColorRow,
+	renderOpacitySlider
+} from './overlay-shared-controls'
 import type { OverlayLayerDirection } from './overlay-toolbar'
 
 export type StyleControlsState = {
@@ -120,8 +123,7 @@ export function renderStyleControls(
 		strokeFieldset,
 		strokeColors,
 		'Stroke',
-		'stroke',
-		(color) => {
+		(color: string) => {
 			callbacks.updateStyle({ strokeColor: color })
 		},
 		() => state.style.strokeColor
@@ -133,8 +135,7 @@ export function renderStyleControls(
 		bgFieldset,
 		fillColors,
 		'Background',
-		'background',
-		(color) => {
+		(color: string) => {
 			callbacks.updateStyle({ backgroundColor: color })
 		},
 		() => state.style.backgroundColor
@@ -249,136 +250,8 @@ export function renderStyleControls(
 		})
 	}
 
-	const opacityLabel = container.createEl('label', { cls: 'control-label' })
-	opacityLabel.createSpan({ text: 'Opacity' })
-	const opacityRow = opacityLabel.createDiv({ cls: 'range-wrapper' })
-	const opacityInput = opacityRow.createEl('input', {
-		type: 'range',
-		cls: 'range-input annotation-opacity-slider',
-		attr: {
-			min: '0',
-			max: '100',
-			step: '10',
-			'data-testid': 'opacity',
-			'aria-label': 'Opacity'
-		}
-	})
-	opacityInput.value = String(state.style.opacity)
-	const opacityValue = opacityRow.createDiv({
-		cls: 'value-bubble annotation-opacity-value',
-		text: state.style.opacity !== 0 ? String(state.style.opacity) : ''
-	})
-	opacityRow.createDiv({ cls: 'zero-label', text: '0' })
+	renderOpacitySlider(container, () => state.style.opacity, callbacks.updateOpacity)
 
-	const positionOpacityBubble = () => {
-		const inputWidth = opacityInput.offsetWidth
-		const thumbSize =
-			parseFloat(
-				getComputedStyle(opacityInput).getPropertyValue('--slider-thumb-size')
-			) || 16
-		const progress = state.style.opacity
-		const pos = (progress / 100) * (inputWidth - thumbSize) + thumbSize / 2
-		opacityValue.style.left = `${pos}px`
-	}
-	positionOpacityBubble()
-
-	opacityInput.addEventListener('input', () => {
-		const value = parseInt(opacityInput.value, 10)
-		callbacks.updateOpacity(value)
-		opacityValue.textContent = value !== 0 ? String(value) : ''
-		const inputWidth = opacityInput.offsetWidth
-		const thumbSize =
-			parseFloat(
-				getComputedStyle(opacityInput).getPropertyValue('--slider-thumb-size')
-			) || 16
-		const pos = (value / 100) * (inputWidth - thumbSize) + thumbSize / 2
-		opacityValue.style.left = `${pos}px`
-	})
-
-	const layersFieldset = container.createEl('fieldset')
-	layersFieldset.createEl('legend', { text: 'Layers' })
-	const layersList = layersFieldset.createDiv({ cls: 'buttonList' })
-	for (const item of layers) {
-		const btn = layersList.createEl('button', {
-			type: 'button',
-			attr: { title: item.title, 'aria-label': item.title }
-		})
-		btn.appendChild(item.icon())
-		btn.addEventListener('click', (event) => {
-			event.preventDefault()
-			event.stopPropagation()
-			item.action()
-		})
-	}
-
-	const actionsFieldset = container.createEl('fieldset')
-	actionsFieldset.createEl('legend', { text: 'Actions' })
-	const actionsList = actionsFieldset.createDiv({ cls: 'buttonList' })
-	for (const item of actions) {
-		const btn = actionsList.createEl('button', {
-			type: 'button',
-			attr: { title: item.title, 'aria-label': item.title }
-		})
-		btn.appendChild(item.icon())
-		btn.addEventListener('click', (event) => {
-			event.preventDefault()
-			event.stopPropagation()
-			item.action()
-		})
-	}
-}
-
-function renderColorRow(
-	container: HTMLElement,
-	colors: readonly string[],
-	label: string,
-	mode: 'stroke' | 'background',
-	setColor: (color: string) => void,
-	getColor: () => string
-) {
-	const pickerContainer = container.createDiv({ cls: 'color-picker-container' })
-	const topPicks = pickerContainer.createDiv({ cls: 'color-picker__top-picks' })
-
-	for (const color of colors) {
-		const isTransparent = color === 'transparent'
-		const btn = topPicks.createEl('button', {
-			cls: 'color-picker__button',
-			type: 'button',
-			attr: { title: color, 'aria-label': `${label} ${color}` }
-		})
-		btn.style.setProperty('--swatch-color', color)
-		if (isTransparent) {
-			btn.addClass('is-transparent', 'has-outline')
-		} else if (!isColorDark(color, COLOR_OUTLINE_CONTRAST_THRESHOLD)) {
-			btn.addClass('has-outline')
-		}
-		btn.createDiv({ cls: 'color-picker__button-outline' })
-		if (getColor() === color) {
-			btn.addClass('active')
-		}
-		btn.addEventListener('click', (event) => {
-			event.preventDefault()
-			event.stopPropagation()
-			setColor(color)
-		})
-	}
-
-	// Vertical divider
-	pickerContainer.createDiv({
-		cls: 'color-picker-divider'
-	})
-
-	// Current color indicator button
-	const currentBtn = pickerContainer.createEl('button', {
-		cls: 'color-picker__button active-color',
-		type: 'button',
-		attr: { title: `Current ${label}`, 'aria-label': `${label} current` }
-	})
-	currentBtn.style.setProperty('--swatch-color', getColor())
-	if (getColor() === 'transparent') {
-		currentBtn.addClass('is-transparent', 'has-outline')
-	} else if (!isColorDark(getColor(), COLOR_OUTLINE_CONTRAST_THRESHOLD)) {
-		currentBtn.addClass('has-outline')
-	}
-	currentBtn.createDiv({ cls: 'color-picker__button-outline' })
+	renderButtonListFieldset(container, 'Layers', layers)
+	renderButtonListFieldset(container, 'Actions', actions)
 }

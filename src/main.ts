@@ -1,4 +1,5 @@
 import { MarkdownView, Notice, Plugin, TFile } from 'obsidian'
+import { preloadExcalidrawFonts } from './drawing/fonts'
 import { ANNOTATION_DRAWING_CLASS, AnnotationEditorOverlay } from './overlay'
 import {
 	ANNOTATION_STORAGE_DIR,
@@ -24,22 +25,21 @@ export default class AnnotationPlugin extends Plugin {
 	private readonly editorOverlaysByContentEl = new WeakMap<HTMLElement, AnnotationEditorOverlay>()
 	private readonly viewActionButtons = new WeakMap<MarkdownView, HTMLElement>()
 	private readonly annotationIdsByPath = new Map<string, string>()
-	private ribbonIconEl: HTMLElement | null = null
 	private isDrawingMode = false
 
 	async onload() {
-		this.ribbonIconEl = this.addRibbonIcon(
-			'square-pen',
-			'Toggle Annotation for current note',
-			() => {
-				void this.toggleAnnotationForCurrentNote()
-			}
-		)
+		void preloadExcalidrawFonts(this)
 
 		this.addCommand({
 			id: 'toggle-annotation-drawing-mode',
 			name: 'Toggle Annotation drawing',
-			callback: () => void this.toggleAnnotationForCurrentNote()
+			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'a' }],
+			callback: () => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView)
+				if (view) {
+					void this.toggleViewAction(view)
+				}
+			}
 		})
 
 		this.registerEvent(
@@ -289,8 +289,6 @@ export default class AnnotationPlugin extends Plugin {
 	}
 
 	private updateActionButtonStates() {
-		this.ribbonIconEl?.toggleClass('is-active', this.isDrawingMode)
-
 		this.app.workspace.getLeavesOfType('markdown').forEach((leaf) => {
 			if (!(leaf.view instanceof MarkdownView)) {
 				return

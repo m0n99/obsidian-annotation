@@ -11,8 +11,14 @@ import {
 
 export { SVG_NS, SHIFT_LOCKING_ANGLE }
 
-/** Default font size for text annotations (re-exported from Excalidraw as DEFAULT_FONT_SIZE). */
 export const TEXT_DEFAULT_FONT_SIZE = DEFAULT_FONT_SIZE
+export const TEXT_MARKDOWN_DEFAULT_FONT_SIZE = 16
+export const TEXT_FONT_SIZES = {
+	sm: 14,
+	md: TEXT_MARKDOWN_DEFAULT_FONT_SIZE,
+	lg: 20,
+	xl: 24
+} as const
 
 export const MIN_SHAPE_SIZE = 4
 export const SELECTION_HANDLE_SIZE = 8
@@ -24,9 +30,9 @@ export const DEFAULT_BACKGROUND_COLOR = DEFAULT_ELEMENT_PROPS.backgroundColor
 export const DEFAULT_STROKE_WIDTH = DEFAULT_ELEMENT_PROPS.strokeWidth
 export const DEFAULT_ROUGHNESS = DEFAULT_ELEMENT_PROPS.roughness
 export const DEFAULT_OPACITY = DEFAULT_ELEMENT_PROPS.opacity
-export const EXCALIDRAW_FONT_FAMILY = getFontFamilyString({ fontFamily: FONT_FAMILY.Virgil })
-export const EXCALIDRAW_TEXT_LINE_HEIGHT = getLineHeight(FONT_FAMILY.Virgil)
-export const EXCALIDRAW_FONT_FAMILY_ID = FONT_FAMILY.Virgil
+export const EXCALIDRAW_FONT_FAMILY = getFontFamilyString({ fontFamily: FONT_FAMILY.Nunito })
+export const EXCALIDRAW_TEXT_LINE_HEIGHT = getLineHeight(FONT_FAMILY.Nunito)
+export const EXCALIDRAW_FONT_FAMILY_ID = FONT_FAMILY.Nunito
 
 export type AnnotationTool =
 	| 'select'

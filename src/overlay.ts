@@ -1,11 +1,12 @@
 import { App, Component, MarkdownRenderer, MarkdownView, TFile } from 'obsidian'
+import { preloadExcalidrawFonts } from './drawing/fonts'
 import {
 	EXCALIDRAW_FONT_FAMILY,
 	EXCALIDRAW_TEXT_LINE_HEIGHT,
 	SELECTION_HANDLE_SIZE,
 	SHIFT_LOCKING_ANGLE,
 	SVG_NS,
-	TEXT_DEFAULT_FONT_SIZE,
+	TEXT_MARKDOWN_DEFAULT_FONT_SIZE,
 	TEXT_MIN_BOX_WIDTH,
 	type AnnotationElement,
 	type AnnotationPoint,
@@ -27,10 +28,12 @@ import {
 	resizeElementFromPointer,
 	resizeEdgeAtPoint,
 	rotationCenterForElement,
+	SELECTION_PADDING,
 	selectionHandleCenter,
 	selectionHandlesForElement,
 	textBoxHeight,
 	textBoxWidth,
+	textFontFamily,
 	textFontSize,
 	transformHandlesForElement
 } from './drawing/geometry'
@@ -46,16 +49,23 @@ import {
 } from './drawing/scene'
 import {
 	absolutePoints,
+	annotationTextFontString,
 	bumpElementVersion,
 	createBoxElement,
 	createDraftElement,
 	createFreeDrawElement,
 	createLinearElement,
 	createTextElement,
-	updateTextElement
+	updateTextElement,
+	wrapAnnotationText
 } from './drawing/excalidraw-adapter'
 import { isBoxElement, isTextElement } from './drawing/guards'
-import { measureTextareaContent, normalizeTextValue } from './drawing/text'
+import {
+	measureTextContent,
+	measureTextareaContent,
+	measureWrappedTextContent,
+	normalizeTextValue
+} from './drawing/text'
 import {
 	getEditorEl,
 	getEditorOverlayHost,
@@ -94,6 +104,7 @@ type InteractionState = {
 
 interface AnnotationPluginHost extends Component {
 	readonly app: App
+	readonly manifest: { dir?: string }
 	loadAnnotationData(file: TFile): Promise<AnnotationData>
 	saveAnnotationData(file: TFile, data: AnnotationData): Promise<void>
 	getActiveAnnotationOverlay(): AnnotationEditorOverlay | null
@@ -131,6 +142,7 @@ export class AnnotationEditorOverlay {
 	private eraserCursorDataUrl: string | null = null
 	private readonly file: TFile | null
 	private readonly filePath: string | null
+	private markdownFontSizePx: number = TEXT_MARKDOWN_DEFAULT_FONT_SIZE
 	private currentStyle: Required<AnnotationStyle> = defaultAnnotationStyle()
 	private mutationVersion = 0
 	private isDrawingMode = false
@@ -141,6 +153,8 @@ export class AnnotationEditorOverlay {
 		private readonly plugin: AnnotationPluginHost,
 		private readonly view: MarkdownView
 	) {
+		void preloadExcalidrawFonts(plugin)
+
 		this.file = view.file
 		this.filePath = this.file?.path ?? null
 		this.overlayHost = getEditorOverlayHost(view)
@@ -175,6 +189,8 @@ export class AnnotationEditorOverlay {
 		this.svgEl.addEventListener('pointercancel', this.handlePointerUp)
 		this.svgEl.addEventListener('dblclick', this.handleDoubleClick)
 		window.addEventListener('keydown', this.handleKeyDown, { capture: true })
+		window.addEventListener('focus', this.handleWindowFocus)
+		document.fonts?.addEventListener?.('loadingdone', this.handleFontLoadingDone)
 
 		this.resize()
 		this.renderScene()
@@ -217,6 +233,8 @@ export class AnnotationEditorOverlay {
 		this.svgEl.removeEventListener('pointercancel', this.handlePointerUp)
 		this.svgEl.removeEventListener('dblclick', this.handleDoubleClick)
 		window.removeEventListener('keydown', this.handleKeyDown, true)
+		window.removeEventListener('focus', this.handleWindowFocus)
+		document.fonts?.removeEventListener?.('loadingdone', this.handleFontLoadingDone)
 		this.cancelInlineTextEditor()
 		this.view.contentEl.removeClass(ANNOTATION_DRAWING_CLASS)
 		this.toolbarEl.remove()
@@ -226,6 +244,7 @@ export class AnnotationEditorOverlay {
 	}
 
 	resize() {
+		this.updateMarkdownTextScale()
 		this.sizeToDocumentPlane()
 	}
 
@@ -249,7 +268,7 @@ export class AnnotationEditorOverlay {
 						? {
 								style: styleForElement(selected),
 								textAlign: selected.textAlign ?? 'left',
-								fontSize: selected.fontSize ?? 20,
+								fontSize: textFontSize(selected),
 								fontFamily: selected.fontFamily ?? 1
 							}
 						: undefined,
@@ -320,6 +339,18 @@ export class AnnotationEditorOverlay {
 
 	private handleHostScroll = () => {
 		this.resize()
+	}
+
+	private handleWindowFocus = () => {
+		this.resize()
+		this.renderScene()
+	}
+
+	private handleFontLoadingDone = () => {
+		if (this.isDestroyed) {
+			return
+		}
+		this.renderScene()
 	}
 
 	private handleKeyDown = (event: KeyboardEvent) => {
@@ -906,6 +937,7 @@ export class AnnotationEditorOverlay {
 		}
 
 		let didUpdate = false
+		let updatedTextElement: TextAnnotationElement | undefined
 		const elements = this.scene.elements.map((element) => {
 			if (element.id !== this.selectedId) {
 				return element
@@ -953,6 +985,7 @@ export class AnnotationEditorOverlay {
 		}
 
 		let didUpdate = false
+		let updatedTextElement: TextAnnotationElement | undefined
 		const elements = this.scene.elements.map((element) => {
 			if (element.id !== this.selectedId || element.type !== 'text') {
 				return element
@@ -969,12 +1002,60 @@ export class AnnotationEditorOverlay {
 			if (props.fontFamily !== undefined) {
 				next.fontFamily = props.fontFamily
 			}
-			return bumpElementVersion(next) as TextAnnotationElement
+			updatedTextElement = this.resizeTextBoxForStyleChange(next)
+			return updatedTextElement
 		})
 
 		if (didUpdate) {
 			this.commitSceneMutation({ elements })
+			if (updatedTextElement && updatedTextElement.id === this.activeTextElementId) {
+				this.syncActiveTextEditorStyle(updatedTextElement)
+			}
 		}
+	}
+
+	private syncActiveTextEditorStyle(element: TextAnnotationElement) {
+		const textarea = this.activeTextEditor
+		if (!textarea) {
+			return
+		}
+
+		const fontSize = textFontSize(element)
+		textarea.style.color = styleForElement(element).strokeColor
+		textarea.style.font = annotationTextFontString(fontSize, textFontFamily(element))
+		textarea.style.lineHeight = `${fontSize * EXCALIDRAW_TEXT_LINE_HEIGHT}px`
+		textarea.style.width = `${textBoxWidth(element)}px`
+		this.autosizeInlineTextEditor(textarea)
+		if (textarea.dataset.annotationAutoResize === 'false') {
+			this.renderScene()
+		}
+	}
+
+	private currentTextElement(element: TextAnnotationElement) {
+		return this.scene.elements.find(
+			(candidate): candidate is TextAnnotationElement =>
+				candidate.id === element.id && candidate.type === 'text'
+		)
+	}
+
+	private resizeTextBoxForStyleChange(element: TextAnnotationElement): TextAnnotationElement {
+		const text = element.originalText ?? element.text
+		const fontSize = textFontSize(element)
+		const fontFamily = textFontFamily(element)
+		const font = annotationTextFontString(fontSize, fontFamily)
+		const lineHeight = fontSize * EXCALIDRAW_TEXT_LINE_HEIGHT
+		const autoResize = element.autoResize !== false
+		const metrics = autoResize
+			? measureTextContent(text, font, EXCALIDRAW_TEXT_LINE_HEIGHT)
+			: measureWrappedTextContent(text, font, lineHeight, textBoxWidth(element))
+		return bumpElementVersion({
+			...element,
+			text: autoResize ? text : wrapAnnotationText(text, textBoxWidth(element), fontSize, fontFamily),
+			originalText: text,
+			width: autoResize ? Math.max(TEXT_MIN_BOX_WIDTH, Math.ceil(metrics.width + 2)) : textBoxWidth(element),
+			height: Math.max(lineHeight, Math.ceil(metrics.height + 2)),
+			autoResize
+		}) as TextAnnotationElement
 	}
 
 	private startInlineTextEditor(target: AnnotationPoint | TextAnnotationElement) {
@@ -983,8 +1064,9 @@ export class AnnotationEditorOverlay {
 		this.activeTextElementId = isExistingText ? target.id : null
 		const point = isExistingText ? { x: target.x, y: target.y } : target
 		const style = isExistingText ? styleForElement(target) : this.styleForNewElement()
-		const initialText = isExistingText ? target.text : ''
-		const fontSize = isExistingText ? textFontSize(target) : TEXT_DEFAULT_FONT_SIZE
+		const initialText = isExistingText ? (target.originalText ?? target.text) : ''
+		const fontSize = isExistingText ? textFontSize(target) : this.markdownFontSizePx
+		const fontFamily = isExistingText ? textFontFamily(target) : undefined
 		const initialWidth = isExistingText ? textBoxWidth(target) : 80
 		const initialHeight = isExistingText
 			? textBoxHeight(target)
@@ -997,7 +1079,9 @@ export class AnnotationEditorOverlay {
 		textarea.style.left = `${point.x}px`
 		textarea.style.top = `${point.y}px`
 		textarea.style.color = style.strokeColor
-		textarea.style.font = `${fontSize}px ${EXCALIDRAW_FONT_FAMILY}`
+		textarea.style.font = fontFamily
+			? annotationTextFontString(fontSize, fontFamily)
+			: `${fontSize}px ${EXCALIDRAW_FONT_FAMILY}`
 		textarea.style.lineHeight = `${fontSize * EXCALIDRAW_TEXT_LINE_HEIGHT}px`
 		textarea.style.width = `${initialWidth}px`
 		textarea.style.height = `${initialHeight}px`
@@ -1027,9 +1111,13 @@ export class AnnotationEditorOverlay {
 
 			const text = normalizeTextValue(textarea.value)
 			const metrics = measureTextareaContent(textarea)
+			const autoResize = textarea.dataset.annotationAutoResize !== 'false'
+			const currentTarget = isExistingText ? this.currentTextElement(target) : null
+			const currentFontSize = currentTarget ? textFontSize(currentTarget) : fontSize
+			const currentStyle = currentTarget ? styleForElement(currentTarget) : style
 			const width = Math.max(TEXT_MIN_BOX_WIDTH, Math.ceil(metrics.width + 2))
 			const height = Math.max(
-				fontSize * EXCALIDRAW_TEXT_LINE_HEIGHT,
+				currentFontSize * EXCALIDRAW_TEXT_LINE_HEIGHT,
 				Math.ceil(metrics.height + 2)
 			)
 			safeRemoveElement(textarea)
@@ -1043,12 +1131,13 @@ export class AnnotationEditorOverlay {
 						? this.scene.elements.map((element) =>
 								element.id === target.id
 									? updateTextElement(
-											target,
+											currentTarget ?? target,
 											text,
 											width,
 											height,
-											fontSize,
-											style
+											currentFontSize,
+											currentStyle,
+											autoResize
 										)
 									: element
 							)
@@ -1062,7 +1151,9 @@ export class AnnotationEditorOverlay {
 					width,
 					height,
 					fontSize,
-					style
+					style,
+					autoResize,
+					fontFamily
 				)
 				this.commitSceneMutation({ elements: [...this.scene.elements, element] })
 				this.selectedId = element.id
@@ -1074,7 +1165,12 @@ export class AnnotationEditorOverlay {
 		this.activeTextFinish = finish
 
 		textarea.addEventListener('pointerdown', (event) => event.stopPropagation())
-		textarea.addEventListener('input', () => this.autosizeInlineTextEditor(textarea))
+		textarea.addEventListener('input', () => {
+			this.autosizeInlineTextEditor(textarea)
+			if (textarea.dataset.annotationAutoResize === 'false') {
+				this.renderScene()
+			}
+		})
 		textarea.addEventListener('keydown', (event) => {
 			if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
 				event.preventDefault()
@@ -1099,7 +1195,9 @@ export class AnnotationEditorOverlay {
 		if (textarea.dataset.annotationAutoResize !== 'false') {
 			textarea.style.width = `${Math.max(TEXT_MIN_BOX_WIDTH, Math.min(720, metrics.width + 2))}px`
 		}
-		textarea.style.height = `${Math.max(TEXT_DEFAULT_FONT_SIZE * EXCALIDRAW_TEXT_LINE_HEIGHT, metrics.height + 2)}px`
+		const fontSize =
+			Number.parseFloat(window.getComputedStyle(textarea).fontSize) || this.markdownFontSizePx
+		textarea.style.height = `${Math.max(fontSize * EXCALIDRAW_TEXT_LINE_HEIGHT, metrics.height + 2)}px`
 	}
 
 	private cancelInlineTextEditor() {
@@ -1178,7 +1276,23 @@ export class AnnotationEditorOverlay {
 			: this.scene.elements.find((element) => element.id === this.selectedId)
 		if (selected) {
 			this.svgEl.appendChild(this.createSelectionNode(normalizeElementGeometry(selected)))
+		} else if (this.activeTextEditor?.dataset.annotationAutoResize === 'false') {
+			this.svgEl.appendChild(this.createActiveTextEditorBox(this.activeTextEditor))
 		}
+	}
+
+	private createActiveTextEditorBox(textarea: HTMLTextAreaElement): SVGElement {
+		const rect = document.createElementNS(SVG_NS, 'rect')
+		rect.addClass('annotation-text-editor-box')
+		const x = Number.parseFloat(textarea.style.left) || 0
+		const y = Number.parseFloat(textarea.style.top) || 0
+		const width = Number.parseFloat(textarea.style.width) || textarea.offsetWidth
+		const height = Number.parseFloat(textarea.style.height) || textarea.offsetHeight
+		rect.setAttr('x', `${x - SELECTION_PADDING}`)
+		rect.setAttr('y', `${y - SELECTION_PADDING}`)
+		rect.setAttr('width', `${width + SELECTION_PADDING * 2}`)
+		rect.setAttr('height', `${height + SELECTION_PADDING * 2}`)
+		return rect
 	}
 
 	private createSelectionNode(element: AnnotationElement): SVGElement {
@@ -1277,7 +1391,10 @@ export class AnnotationEditorOverlay {
 		container.addClass('annotation-markdown-text-content')
 		container.style.color = style.strokeColor
 		container.style.fontSize = `${textFontSize(element)}px`
-		container.style.fontFamily = EXCALIDRAW_FONT_FAMILY
+		container.style.fontFamily = annotationTextFontString(
+			textFontSize(element),
+			textFontFamily(element)
+		).replace(/^\d+px\s+/, '')
 		container.style.lineHeight = `${EXCALIDRAW_TEXT_LINE_HEIGHT}`
 		foreignObject.appendChild(container)
 		void MarkdownRenderer.render(
@@ -1292,6 +1409,18 @@ export class AnnotationEditorOverlay {
 		return foreignObject
 	}
 
+	private updateMarkdownTextScale() {
+		const editorEl = getEditorEl(this.view)
+		const markdownTextEl =
+			editorEl?.querySelector<HTMLElement>('.cm-content, .cm-line') ?? editorEl
+		const fontSize = markdownTextEl
+			? Number.parseFloat(window.getComputedStyle(markdownTextEl).fontSize)
+			: Number.NaN
+		this.markdownFontSizePx = Number.isFinite(fontSize)
+			? fontSize
+			: TEXT_MARKDOWN_DEFAULT_FONT_SIZE
+	}
+
 	private updateTextBoxHeightFromRenderedContent(
 		element: TextAnnotationElement,
 		container: HTMLElement
@@ -1301,6 +1430,9 @@ export class AnnotationEditorOverlay {
 		}
 
 		const contentBounds = this.measureRenderedTextContent(container)
+		if (contentBounds.width <= 0 || contentBounds.height <= 0) {
+			return
+		}
 		const measuredWidth = Math.ceil(contentBounds.width)
 		const measuredHeight = Math.ceil(contentBounds.height)
 		const nextWidth = Math.max(TEXT_MIN_BOX_WIDTH, measuredWidth)

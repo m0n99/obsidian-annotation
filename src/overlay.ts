@@ -174,7 +174,7 @@ export class AnnotationEditorOverlay {
 		this.svgEl.addEventListener('pointerup', this.handlePointerUp)
 		this.svgEl.addEventListener('pointercancel', this.handlePointerUp)
 		this.svgEl.addEventListener('dblclick', this.handleDoubleClick)
-		window.addEventListener('keydown', this.handleKeyDown)
+		window.addEventListener('keydown', this.handleKeyDown, { capture: true })
 
 		this.resize()
 		this.renderScene()
@@ -216,7 +216,7 @@ export class AnnotationEditorOverlay {
 		this.svgEl.removeEventListener('pointerup', this.handlePointerUp)
 		this.svgEl.removeEventListener('pointercancel', this.handlePointerUp)
 		this.svgEl.removeEventListener('dblclick', this.handleDoubleClick)
-		window.removeEventListener('keydown', this.handleKeyDown)
+		window.removeEventListener('keydown', this.handleKeyDown, true)
 		this.cancelInlineTextEditor()
 		this.view.contentEl.removeClass(ANNOTATION_DRAWING_CLASS)
 		this.toolbarEl.remove()
@@ -258,7 +258,11 @@ export class AnnotationEditorOverlay {
 			{
 				selectTool: (tool) => {
 					this.tool = tool
+					this.selectedId = null
+					this.draftElement = null
+					this.interaction = null
 					this.resetHoverState()
+					this.cancelInlineTextEditor()
 					this.renderToolbar()
 					this.renderScene()
 				},
@@ -322,26 +326,35 @@ export class AnnotationEditorOverlay {
 		if (
 			!this.isDrawingMode ||
 			this.plugin.getActiveAnnotationOverlay() !== this ||
-			isEditableKeyboardTarget(event.target)
+			(this.isOverlayKeyboardTarget(event.target) && isEditableKeyboardTarget(event.target))
 		) {
 			return
 		}
 
 		if (this.handleToolShortcut(event) || this.handleUndoRedoShortcut(event)) {
+			event.stopPropagation()
 			return
 		}
 
-		if (!this.selectedId || (event.key !== 'Delete' && event.key !== 'Backspace')) {
+		if (this.selectedId && (event.key === 'Delete' || event.key === 'Backspace')) {
+			event.preventDefault()
+			event.stopPropagation()
+			this.deleteSelected()
 			return
 		}
 
 		event.preventDefault()
-		this.commitSceneMutation({
-			elements: this.scene.elements.filter((element) => element.id !== this.selectedId)
-		})
-		this.selectedId = null
-		this.renderToolbar()
-		this.renderScene()
+		event.stopPropagation()
+	}
+
+	private isOverlayKeyboardTarget(target: EventTarget | null) {
+		return (
+			target instanceof Node &&
+			(this.rootEl.contains(target) ||
+				this.toolbarEl.contains(target) ||
+				this.stylePanelToggleEl.contains(target) ||
+				this.stylePanelEl.contains(target))
+		)
 	}
 
 	private handlePointerDown = (event: PointerEvent) => {

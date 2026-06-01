@@ -10,26 +10,31 @@ export function sizeOverlayToDocumentPlane(
 	svgEl: SVGSVGElement
 ) {
 	const editorEl = getEditorEl(view)
-	const sizerEl = getEditorSizerEl(view)
-	const editorRect = editorEl?.getBoundingClientRect() ?? overlayHost.getBoundingClientRect()
-	const sizerRect = sizerEl?.getBoundingClientRect()
-	const mountRect = overlayMountEl.getBoundingClientRect()
-	const planeRect = sizerRect ?? editorRect
-	const left = Math.floor(planeRect.left - mountRect.left)
-	const width = Math.ceil(
-		sizerEl?.scrollWidth || planeRect.width || overlayHost.clientWidth || overlayMountEl.clientWidth
-	)
+	const contentContainerEl = getEditorContentContainer(view)
+	const hostRect = overlayHost.getBoundingClientRect()
+	const editorRect = editorEl?.getBoundingClientRect() ?? hostRect
+
+	// Static offset: contentContainer relative to scroller
+	const top = contentContainerEl
+		? offsetTopRelativeTo(contentContainerEl, overlayHost)
+		: 0
+	const containerLeft = contentContainerEl
+		? offsetLeftRelativeTo(contentContainerEl, overlayHost)
+		: 0
+	// Full editor width so drawings can extend beyond the content area
+	const width = Math.ceil(editorRect.width || overlayHost.clientWidth)
 	const height = Math.ceil(
-		Math.max(overlayMountEl.scrollHeight, overlayMountEl.clientHeight, DEFAULT_OVERLAY_HEIGHT)
+		Math.max(overlayHost.scrollHeight, overlayHost.clientHeight, DEFAULT_OVERLAY_HEIGHT)
 	)
 
-	rootEl.style.left = `${left}px`
-	rootEl.style.top = '0px'
+	rootEl.style.left = '0px'
+	rootEl.style.top = `${top}px`
 	rootEl.style.width = `${width}px`
 	rootEl.style.height = `${height}px`
 	svgEl.setAttr('width', `${width}`)
 	svgEl.setAttr('height', `${height}`)
-	svgEl.setAttr('viewBox', `0 0 ${width} ${height}`)
+	// Shift viewBox origin so SVG x=0 aligns with contentContainer left edge
+	svgEl.setAttr('viewBox', `${-containerLeft} 0 ${width} ${height}`)
 }
 
 export function getEditorOverlayHost(view: MarkdownView) {
@@ -47,22 +52,50 @@ export function getEditorSizerEl(view: MarkdownView) {
 	return view.contentEl.querySelector<HTMLElement>('.markdown-source-view.mod-cm6 .cm-sizer')
 }
 
-export function getEditorSizerCenterX(view: MarkdownView, relativeTo?: Element) {
-	const sizer = getEditorSizerEl(view)
+export function getContentContainerCenterX(view: MarkdownView, relativeTo?: Element) {
+	const container = getEditorContentContainer(view)
 	if (!relativeTo) {
-		return (
-			(sizer?.scrollWidth || sizer?.clientWidth || getEditorOverlayMount(view).clientWidth) /
-			2
-		)
+		return (container?.scrollWidth || container?.clientWidth || getEditorOverlayMount(view).clientWidth) / 2
 	}
 
 	const referenceRect = relativeTo.getBoundingClientRect()
-	const sizerRect = sizer?.getBoundingClientRect()
-	return sizerRect
-		? sizerRect.left - referenceRect.left + sizerRect.width / 2
+	const containerRect = container?.getBoundingClientRect()
+	return containerRect
+		? containerRect.left - referenceRect.left + containerRect.width / 2
 		: referenceRect.width / 2
 }
 
+/** @deprecated Use getContentContainerCenterX */
+export const getEditorSizerCenterX = getContentContainerCenterX
+
 export function getEditorEl(view: MarkdownView) {
 	return view.contentEl.querySelector<HTMLElement>('.markdown-source-view.mod-cm6 .cm-editor')
+}
+
+export function getEditorContentContainer(view: MarkdownView) {
+	return view.contentEl.querySelector<HTMLElement>(
+		'.markdown-source-view.mod-cm6 .cm-contentContainer'
+	)
+}
+
+/** Sum offsetTop up the offsetParent chain until reaching `ancestor`. */
+function offsetTopRelativeTo(el: HTMLElement, ancestor: HTMLElement): number {
+	let top = 0
+	let current: HTMLElement | null = el
+	while (current && current !== ancestor) {
+		top += current.offsetTop
+		current = current.offsetParent as HTMLElement | null
+	}
+	return top
+}
+
+/** Sum offsetLeft up the offsetParent chain until reaching `ancestor`. */
+function offsetLeftRelativeTo(el: HTMLElement, ancestor: HTMLElement): number {
+	let left = 0
+	let current: HTMLElement | null = el
+	while (current && current !== ancestor) {
+		left += current.offsetLeft
+		current = current.offsetParent as HTMLElement | null
+	}
+	return left
 }

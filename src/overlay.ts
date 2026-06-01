@@ -143,7 +143,7 @@ export class AnnotationEditorOverlay {
 		this.saveHost = plugin
 		this.overlayHost = getEditorOverlayHost(view)
 		this.overlayMountEl = getEditorOverlayMount(view)
-		this.rootEl = this.overlayMountEl.createDiv({ cls: 'annotation-editor-overlay' })
+		this.rootEl = this.overlayHost.createDiv({ cls: 'annotation-editor-overlay' })
 		this.toolbarEl = (getEditorEl(view) ?? this.overlayHost).createDiv({
 			cls: 'annotation-toolbar'
 		})

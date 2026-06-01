@@ -3,11 +3,14 @@ import { DEBUG_GEOMETRY_VERSION, isDebugEnabled } from './utils'
 
 export function pointerPoint(svgEl: SVGSVGElement, event: MouseEvent): AnnotationPoint {
 	const rect = svgEl.getBoundingClientRect()
-	const width = svgEl.viewBox.baseVal.width || rect.width
-	const height = svgEl.viewBox.baseVal.height || rect.height
+	const vb = svgEl.viewBox.baseVal
+	const vbWidth = vb.width || rect.width
+	const vbHeight = vb.height || rect.height
+	const vbX = vb.x || 0
+	const vbY = vb.y || 0
 	const point = {
-		x: ((event.clientX - rect.left) * width) / rect.width,
-		y: ((event.clientY - rect.top) * height) / rect.height
+		x: ((event.clientX - rect.left) / rect.width) * vbWidth + vbX,
+		y: ((event.clientY - rect.top) / rect.height) * vbHeight + vbY
 	}
 
 	if (isDebugEnabled() && event.type !== 'pointermove') {
@@ -19,8 +22,8 @@ export function pointerPoint(svgEl: SVGSVGElement, event: MouseEvent): Annotatio
 			svgTop: rect.top,
 			svgCssWidth: rect.width,
 			svgCssHeight: rect.height,
-			viewBoxWidth: width,
-			viewBoxHeight: height,
+			viewBoxWidth: vbWidth,
+			viewBoxHeight: vbHeight,
 			pointX: point.x,
 			pointY: point.y
 		})

@@ -59,6 +59,7 @@
 
 .annotation-active-markdown-view .markdown-source-view.mod-cm6 .cm-scroller {
 	overflow-x: hidden;
+	position: relative;
 }
 
 .annotation-active-markdown-view .markdown-source-view.mod-cm6 .cm-editor {
@@ -97,7 +98,7 @@
 	position: absolute;
 	inset: 0 auto auto 0;
 	z-index: 5;
-	overflow: hidden;
+	overflow: visible;
 	pointer-events: none;
 }
 

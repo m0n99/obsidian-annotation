@@ -69,7 +69,9 @@ import {
 	findElementAtPoint,
 	findTextElementAtPoint,
 	findSelectionHandleAtPoint,
-	findEventTextElement
+	findEventTextElement,
+	findElementsInRect,
+	marqueeToRect
 } from './overlay/hit-test'
 import { pointerPoint, penPoint, logGeometry } from './overlay/pointer'
 import { applyInteraction } from './overlay/interaction'
@@ -107,12 +109,13 @@ export class AnnotationEditorOverlay {
 	private scene: AnnotationScene = emptyScene()
 	private saveTimer: number | null = null
 	private tool: AnnotationTool = 'select'
-	private selectedId: string | null = null
+	private selectedIds: Set<string> = new Set()
 	private draftElement: AnnotationElement | null = null
 	private interaction: InteractionState | null = null
 	private undoStack: AnnotationScene[] = []
 	private redoStack: AnnotationScene[] = []
 	private activePointerId: number | null = null
+	private marquee: { start: AnnotationPoint; end: AnnotationPoint } | null = null
 	private lastSelectClick: {
 		time: number
 		point: AnnotationPoint
@@ -205,10 +208,11 @@ export class AnnotationEditorOverlay {
 		this.stylePanelEl.toggleClass('is-drawing', enabled)
 		this.view.contentEl.toggleClass(ANNOTATION_DRAWING_CLASS, enabled)
 		if (!enabled) {
-			this.selectedId = null
+			this.selectedIds = new Set()
 			this.draftElement = null
 			this.interaction = null
 			this.activePointerId = null
+			this.marquee = null
 			this.textEditor.cancel()
 		}
 		this.renderScene()
@@ -253,8 +257,9 @@ export class AnnotationEditorOverlay {
 	// -- Toolbar ----------------------------------------------------------
 
 	private renderToolbar() {
-		const selected = this.selectedId
-			? this.scene.elements.find((element) => element.id === this.selectedId)
+		const primaryId = this.selectedIds.size === 1 ? [...this.selectedIds][0]! : null
+		const selected = primaryId
+			? this.scene.elements.find((element) => element.id === primaryId)
 			: null
 		const isTextSel = selected !== null && selected !== undefined && selected.type === 'text'
 		const isTextTool = this.tool === 'text'
@@ -291,7 +296,7 @@ export class AnnotationEditorOverlay {
 			{
 				tool: this.tool,
 				style: this.styleForOptionsPane(),
-				hasSelection: this.selectedId !== null,
+				hasSelection: this.selectedIds.size > 0,
 				isTextSelection: isTextSel,
 				isTextTool,
 				textStyle: textStyleState,
@@ -300,9 +305,10 @@ export class AnnotationEditorOverlay {
 			{
 				selectTool: (tool) => {
 					this.tool = tool
-					this.selectedId = null
+					this.selectedIds = new Set()
 					this.draftElement = null
 					this.interaction = null
+					this.marquee = null
 					this.resetHoverState()
 					this.textEditor.cancel()
 					this.renderToolbar()
@@ -395,7 +401,7 @@ export class AnnotationEditorOverlay {
 			return
 		}
 
-		if (this.selectedId && (event.key === 'Delete' || event.key === 'Backspace')) {
+		if (this.selectedIds.size > 0 && (event.key === 'Delete' || event.key === 'Backspace')) {
 			event.preventDefault()
 			event.stopPropagation()
 			this.deleteSelected()
@@ -445,55 +451,83 @@ export class AnnotationEditorOverlay {
 		}
 
 		if (this.tool === 'select') {
-			const selected = findElementAtPoint(this.scene, point)
-			this.selectedId = selected?.id ?? null
-			if (selected?.type === 'text' && this.isSelectDoubleClick(point, selected.id, event)) {
-				this.startInlineTextEditor(selected)
-				this.renderToolbar()
-				this.renderScene()
-				return
-			}
-			this.rememberSelectClick(point, selected?.id ?? null, event)
+			const hit = findElementAtPoint(this.scene, point)
 
-			const handle = findSelectionHandleAtPoint(this.scene, this.selectedId, point)
-			if (this.selectedId && handle) {
-				const selectedElement = this.scene.elements.find(
-					(element) => element.id === this.selectedId
-				)
-				const rotationCenter = selectedElement
-					? rotationCenterForElement(selectedElement)
-					: undefined
-				const startBounds = selectedElement
-					? (elementBounds(selectedElement) ?? undefined)
-					: undefined
-				this.startPointerCapture(event)
-				this.interaction = {
-					type: handle === 'rotation' ? 'rotate' : 'resize',
-					elementId: this.selectedId,
-					startPoint: point,
-					baseScene: cloneScene(this.scene),
-					handle,
-					didMutate: false,
-					lockAspectRatio: event.shiftKey,
-					startBounds,
-					rotationCenter,
-					startAngle: selectedElement?.angle ?? 0,
-					startPointerAngle: rotationCenter
-						? Math.atan2(point.y - rotationCenter.y, point.x - rotationCenter.x)
+			if (hit) {
+				// Shift-click toggles element in/out of selection
+				if (event.shiftKey) {
+					if (this.selectedIds.has(hit.id)) {
+						this.selectedIds = new Set([...this.selectedIds].filter((id) => id !== hit.id))
+					} else {
+						this.selectedIds = new Set([...this.selectedIds, hit.id])
+					}
+				} else {
+					if (!this.selectedIds.has(hit.id)) {
+						this.selectedIds = new Set([hit.id])
+					}
+				}
+
+				if (hit.type === 'text' && this.selectedIds.has(hit.id) && this.isSelectDoubleClick(point, hit.id, event)) {
+					this.startInlineTextEditor(hit)
+					this.renderToolbar()
+					this.renderScene()
+					return
+				}
+				this.rememberSelectClick(point, hit.id, event)
+
+				// Handles only for single selection
+				const primaryId = this.selectedIds.size === 1 ? [...this.selectedIds][0]! : null
+				const handle = primaryId
+					? findSelectionHandleAtPoint(this.scene, primaryId, point)
+					: null
+				if (primaryId && handle) {
+					const selectedElement = this.scene.elements.find(
+						(element) => element.id === primaryId
+					)
+					const rotationCenter = selectedElement
+						? rotationCenterForElement(selectedElement)
 						: undefined
+					const startBounds = selectedElement
+						? (elementBounds(selectedElement) ?? undefined)
+						: undefined
+					this.startPointerCapture(event)
+					this.interaction = {
+						type: handle === 'rotation' ? 'rotate' : 'resize',
+						elementId: primaryId,
+						startPoint: point,
+						baseScene: cloneScene(this.scene),
+						handle,
+						didMutate: false,
+						lockAspectRatio: event.shiftKey,
+						startBounds,
+						rotationCenter,
+						startAngle: selectedElement?.angle ?? 0,
+						startPointerAngle: rotationCenter
+							? Math.atan2(point.y - rotationCenter.y, point.x - rotationCenter.x)
+							: undefined
+					}
+					return
 				}
-				return
-			}
 
-			if (selected) {
-				this.startPointerCapture(event)
-				this.interaction = {
-					type: 'move',
-					elementId: selected.id,
-					startPoint: point,
-					baseScene: cloneScene(this.scene),
-					didMutate: false
+				// Move: drag the hit element (and all selected with it)
+				if (this.selectedIds.has(hit.id)) {
+					this.startPointerCapture(event)
+					this.interaction = {
+						type: 'move',
+						elementId: hit.id,
+						selectedIds: new Set(this.selectedIds),
+						startPoint: point,
+						baseScene: cloneScene(this.scene),
+						didMutate: false
+					}
 				}
+			} else {
+				// No element hit — clear selection (unless shift) and start marquee
+				if (!event.shiftKey) {
+					this.selectedIds = new Set()
+				}
+				this.startPointerCapture(event)
+				this.marquee = { start: point, end: point }
 			}
 			this.renderToolbar()
 			this.renderScene()
@@ -503,7 +537,7 @@ export class AnnotationEditorOverlay {
 		if (this.tool === 'text') {
 			const selected = findTextElementAtPoint(this.scene, point)
 			if (selected) {
-				this.selectedId = selected.id
+				this.selectedIds = new Set([selected.id])
 				this.startInlineTextEditor(selected)
 				this.renderToolbar()
 				this.renderScene()
@@ -519,7 +553,7 @@ export class AnnotationEditorOverlay {
 				this.commitSceneMutation({
 					elements: this.scene.elements.filter((element) => element.id !== selected.id)
 				})
-				this.selectedId = null
+				this.selectedIds = new Set()
 				this.renderToolbar()
 				this.renderScene()
 			}
@@ -531,7 +565,7 @@ export class AnnotationEditorOverlay {
 		}
 
 		this.startPointerCapture(event)
-		this.selectedId = null
+		this.selectedIds = new Set()
 		this.draftElement = createDraftElement(
 			this.tool,
 			penPoint(point, event),
@@ -555,10 +589,11 @@ export class AnnotationEditorOverlay {
 
 		event.preventDefault()
 		event.stopPropagation()
-		this.selectedId = selected.id
+		this.selectedIds = new Set([selected.id])
 		this.interaction = null
 		this.draftElement = null
 		this.activePointerId = null
+		this.marquee = null
 		this.startInlineTextEditor(selected)
 		this.renderToolbar()
 		this.renderScene()
@@ -599,6 +634,15 @@ export class AnnotationEditorOverlay {
 
 		event.preventDefault()
 		event.stopPropagation()
+
+		if (this.marquee) {
+			this.marquee.end = point
+			const rect = marqueeToRect(this.marquee.start, this.marquee.end)
+			const elements = findElementsInRect(this.scene, rect)
+			this.selectedIds = new Set(elements.map((e) => e.id))
+			this.renderScene()
+			return
+		}
 
 		if (this.interaction) {
 			const result = applyInteraction(this.interaction, point, this.interaction.baseScene)
@@ -664,6 +708,13 @@ export class AnnotationEditorOverlay {
 			this.svgEl.releasePointerCapture(event.pointerId)
 		}
 
+		if (this.marquee) {
+			this.marquee = null
+			this.renderToolbar()
+			this.renderScene()
+			return
+		}
+
 		if (this.interaction) {
 			const interaction = this.interaction
 			this.interaction = null
@@ -685,7 +736,7 @@ export class AnnotationEditorOverlay {
 		const finalized = normalizeElementGeometry(draft)
 		if (!isTrivialElement(finalized)) {
 			this.commitSceneMutation({ elements: [...this.scene.elements, finalized] })
-			this.selectedId = finalized.id
+			this.selectedIds = new Set([finalized.id])
 		}
 		this.tool = 'select'
 		this.renderToolbar()
@@ -716,9 +767,10 @@ export class AnnotationEditorOverlay {
 
 		event.preventDefault()
 		this.tool = nextTool
-		this.selectedId = null
+		this.selectedIds = new Set()
 		this.draftElement = null
 		this.interaction = null
+		this.marquee = null
 		this.resetHoverState()
 		this.renderToolbar()
 		this.renderScene()
@@ -758,11 +810,13 @@ export class AnnotationEditorOverlay {
 		this.redoStack.push(cloneScene(this.scene))
 		this.scene = cloneScene(previous)
 		this.mutationVersion++
-		this.selectedId = this.scene.elements.some((element) => element.id === this.selectedId)
-			? this.selectedId
-			: null
+		const surviving = new Set(
+			[...this.selectedIds].filter((id) => this.scene.elements.some((e) => e.id === id))
+		)
+		this.selectedIds = surviving
 		this.draftElement = null
 		this.interaction = null
+		this.marquee = null
 		this.renderToolbar()
 		this.renderScene()
 		this.scheduleSave()
@@ -777,11 +831,13 @@ export class AnnotationEditorOverlay {
 		this.undoStack.push(cloneScene(this.scene))
 		this.scene = cloneScene(next)
 		this.mutationVersion++
-		this.selectedId = this.scene.elements.some((element) => element.id === this.selectedId)
-			? this.selectedId
-			: null
+		const surviving = new Set(
+			[...this.selectedIds].filter((id) => this.scene.elements.some((e) => e.id === id))
+		)
+		this.selectedIds = surviving
 		this.draftElement = null
 		this.interaction = null
+		this.marquee = null
 		this.renderToolbar()
 		this.renderScene()
 		this.scheduleSave()
@@ -803,31 +859,32 @@ export class AnnotationEditorOverlay {
 	}
 
 	private deleteSelected() {
-		if (!this.selectedId) {
+		if (this.selectedIds.size === 0) {
 			return
 		}
+		const ids = this.selectedIds
 		this.commitSceneMutation({
-			elements: this.scene.elements.filter((element) => element.id !== this.selectedId)
+			elements: this.scene.elements.filter((element) => !ids.has(element.id))
 		})
-		this.selectedId = null
+		this.selectedIds = new Set()
 		this.renderToolbar()
 		this.renderScene()
 	}
 
 	private duplicateSelected() {
-		const result = duplicateElement(this.scene, this.selectedId)
+		const result = duplicateElement(this.scene, this.selectedIds)
 		if (!result) {
 			return
 		}
 
 		this.commitSceneMutation(result.scene)
-		this.selectedId = result.selectedId
+		this.selectedIds = result.selectedIds
 		this.renderToolbar()
 		this.renderScene()
 	}
 
 	private moveSelectedLayer(direction: LayerDirection) {
-		const nextScene = moveElementLayer(this.scene, this.selectedId, direction)
+		const nextScene = moveElementLayer(this.scene, this.selectedIds, direction)
 		if (!nextScene) {
 			return
 		}
@@ -843,14 +900,15 @@ export class AnnotationEditorOverlay {
 	}
 
 	private styleForOptionsPane(): Required<AnnotationStyle> {
-		const selected = this.selectedId
-			? this.scene.elements.find((element) => element.id === this.selectedId)
+		const primaryId = this.selectedIds.size > 0 ? [...this.selectedIds][0]! : null
+		const selected = primaryId
+			? this.scene.elements.find((element) => element.id === primaryId)
 			: null
 		return selected ? styleForElement(selected) : this.currentStyle
 	}
 
 	private applyOverlayStyleUpdate(style: Partial<Required<AnnotationStyle>>) {
-		const result = applyStyleUpdate(this.currentStyle, this.scene, this.selectedId, style)
+		const result = applyStyleUpdate(this.currentStyle, this.scene, this.selectedIds, style)
 		this.currentStyle = result.currentStyle
 		if (result.elements) {
 			this.commitSceneMutation({ elements: result.elements })
@@ -867,7 +925,7 @@ export class AnnotationEditorOverlay {
 		if (props.fontSize !== undefined) this.currentFontSize = props.fontSize
 		if (props.fontFamily !== undefined) this.currentFontFamily = props.fontFamily
 
-		const result = applyTextPropertyUpdate(this.scene, this.selectedId, props)
+		const result = applyTextPropertyUpdate(this.scene, this.selectedIds, props)
 		if (result) {
 			this.commitSceneMutation({ elements: result.elements })
 			if (result.updatedTextElement && result.updatedTextElement.id === this.textEditor.currentElementId) {
@@ -910,7 +968,7 @@ export class AnnotationEditorOverlay {
 				),
 			commitSceneMutation: (scene) => self.commitSceneMutation(scene),
 			selectElement: (id) => {
-				self.selectedId = id
+				self.selectedIds = new Set([id])
 			},
 			switchToSelectTool: () => {
 				self.tool = 'select'
@@ -923,7 +981,8 @@ export class AnnotationEditorOverlay {
 	// -- Cursor / hover ---------------------------------------------------
 
 	private updateElementHover(point: AnnotationPoint) {
-		const handle = this.tool === 'select' ? findSelectionHandleAtPoint(this.scene, this.selectedId, point) : null
+		const primaryId = this.selectedIds.size === 1 ? [...this.selectedIds][0]! : null
+		const handle = this.tool === 'select' ? findSelectionHandleAtPoint(this.scene, primaryId, point) : null
 		const hoverElement = handle
 			? null
 			: this.tool === 'text'
@@ -965,15 +1024,19 @@ export class AnnotationEditorOverlay {
 			view: self.view,
 			component: self.plugin,
 			get isDestroyed() { return self.isDestroyed },
-			get selectedId() { return self.selectedId }
+			get selectedIds() { return self.selectedIds }
 		})
 	}
 
 	private getRenderState(): OverlayRenderState {
+		const marqueeRect = this.marquee
+			? marqueeToRect(this.marquee.start, this.marquee.end)
+			: null
 		return {
 			scene: this.scene,
 			draftElement: this.draftElement,
-			selectedId: this.selectedId,
+			selectedIds: this.selectedIds,
+			marqueeRect,
 			activeTextElementId: this.textEditor.currentElementId,
 			activeTextEditor: this.textEditor.currentTextarea,
 			tool: this.tool,

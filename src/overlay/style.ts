@@ -28,17 +28,17 @@ export function applyStyleToElement(
 export function applyStyleUpdate(
 	currentStyle: Required<AnnotationStyle>,
 	scene: AnnotationScene,
-	selectedId: string | null,
+	selectedIds: ReadonlySet<string>,
 	style: Partial<Required<AnnotationStyle>>
 ): { currentStyle: Required<AnnotationStyle>; elements: AnnotationElement[] | null } {
 	const nextStyle = { ...currentStyle, ...style }
-	if (!selectedId) {
+	if (selectedIds.size === 0) {
 		return { currentStyle: nextStyle, elements: null }
 	}
 
 	let didUpdate = false
 	const elements = scene.elements.map((element) => {
-		if (element.id !== selectedId) {
+		if (!selectedIds.has(element.id)) {
 			return element
 		}
 
@@ -54,21 +54,21 @@ export function applyStyleUpdate(
 
 export function applyTextPropertyUpdate(
 	scene: AnnotationScene,
-	selectedId: string | null,
+	selectedIds: ReadonlySet<string>,
 	props: {
 		textAlign?: 'left' | 'center' | 'right'
 		fontSize?: number
 		fontFamily?: number
 	}
 ): { elements: AnnotationElement[]; updatedTextElement: TextAnnotationElement | undefined } | null {
-	if (!selectedId) {
+	if (selectedIds.size === 0) {
 		return null
 	}
 
 	let didUpdate = false
 	let updatedTextElement: TextAnnotationElement | undefined
 	const elements = scene.elements.map((element) => {
-		if (element.id !== selectedId || element.type !== 'text') {
+		if (!selectedIds.has(element.id) || element.type !== 'text') {
 			return element
 		}
 

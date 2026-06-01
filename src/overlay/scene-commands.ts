@@ -18,31 +18,38 @@ export function canMoveElementLayer(
 		: idx > 0
 }
 
-export function duplicateElement(scene: AnnotationScene, selectedId: string | null) {
-	const element = scene.elements.find((candidate) => candidate.id === selectedId)
-	if (!element) {
+export function duplicateElement(scene: AnnotationScene, selectedIds: ReadonlySet<string>) {
+	if (selectedIds.size === 0) {
 		return null
 	}
 
-	const newId = createElementId()
-	const clone: AnnotationElement = {
-		...element,
-		id: newId,
-		x: element.x + 20,
-		y: element.y + 20
+	const newIds: string[] = []
+	const clones: AnnotationElement[] = []
+	for (const id of selectedIds) {
+		const element = scene.elements.find((candidate) => candidate.id === id)
+		if (!element) continue
+		const newId = createElementId()
+		newIds.push(newId)
+		clones.push({ ...element, id: newId, x: element.x + 20, y: element.y + 20 })
 	}
+	if (clones.length === 0) return null
+
 	return {
-		scene: { elements: [...scene.elements, clone] },
-		selectedId: newId
+		scene: { elements: [...scene.elements, ...clones] },
+		selectedIds: new Set(newIds)
 	}
 }
 
 export function moveElementLayer(
 	scene: AnnotationScene,
-	selectedId: string | null,
+	selectedIds: ReadonlySet<string>,
 	direction: LayerDirection
 ): AnnotationScene | null {
-	const idx = scene.elements.findIndex((element) => element.id === selectedId)
+	// Layer operations work on a single element; use first selected
+	const primaryId = selectedIds.size > 0 ? [...selectedIds][0] : null
+	if (!primaryId) return null
+
+	const idx = scene.elements.findIndex((element) => element.id === primaryId)
 	if (idx < 0) {
 		return null
 	}

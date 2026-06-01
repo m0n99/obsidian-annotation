@@ -16,9 +16,14 @@ export function applyInteraction(
 		return null
 	}
 
+	const targetIds =
+		interaction.type === 'move' && interaction.selectedIds
+			? interaction.selectedIds
+			: new Set([interaction.elementId])
+
 	return {
 		elements: baseScene.elements.map((element) => {
-			if (element.id !== interaction.elementId) {
+			if (!targetIds.has(element.id)) {
 				return element
 			}
 

@@ -33,7 +33,8 @@ import { isDebugEnabled, DEBUG_GEOMETRY_VERSION, radiansToDegrees } from './util
 export type OverlayRenderState = {
 	readonly scene: AnnotationScene
 	readonly draftElement: AnnotationElement | null
-	readonly selectedId: string | null
+	readonly selectedIds: ReadonlySet<string>
+	readonly marqueeRect: { x: number; y: number; width: number; height: number } | null
 	readonly activeTextElementId: string | null
 	readonly activeTextEditor: HTMLTextAreaElement | null
 	readonly tool: AnnotationTool
@@ -46,7 +47,7 @@ export interface OverlayRenderContext {
 	readonly view: MarkdownView
 	readonly component: import('obsidian').Component
 	isDestroyed: boolean
-	selectedId: string | null
+	selectedIds: ReadonlySet<string>
 }
 
 export function renderOverlayScene(
@@ -71,15 +72,30 @@ export function renderOverlayScene(
 
 		const node = createAnnotationElementNode(normalizeElementGeometry(element), context)
 		node.addClass('annotation-element')
-		node.toggleClass('is-selected', element.id === state.selectedId)
+		node.toggleClass('is-selected', state.selectedIds.has(element.id))
 		svgEl.appendChild(node)
 	}
 
-	const selected = state.activeTextEditor
-		? null
-		: state.scene.elements.find((element) => element.id === state.selectedId)
-	if (selected) {
-		svgEl.appendChild(createAnnotationSelectionNode(normalizeElementGeometry(selected)))
+	// Marquee rectangle (during drag-select)
+	if (state.marqueeRect && state.marqueeRect.width > 0 && state.marqueeRect.height > 0) {
+		const rect = document.createElementNS(SVG_NS, 'rect')
+		rect.addClass('annotation-marquee')
+		rect.setAttr('x', `${state.marqueeRect.x}`)
+		rect.setAttr('y', `${state.marqueeRect.y}`)
+		rect.setAttr('width', `${state.marqueeRect.width}`)
+		rect.setAttr('height', `${state.marqueeRect.height}`)
+		svgEl.appendChild(rect)
+	}
+
+	// Selection overlay
+	const selectedElements = state.activeTextEditor
+		? []
+		: state.scene.elements.filter((element) => state.selectedIds.has(element.id))
+
+	if (selectedElements.length === 1) {
+		svgEl.appendChild(createAnnotationSelectionNode(normalizeElementGeometry(selectedElements[0]!)))
+	} else if (selectedElements.length > 1) {
+		svgEl.appendChild(createMultiSelectionNode(selectedElements))
 	} else if (state.activeTextEditor?.dataset.annotationAutoResize === 'false') {
 		svgEl.appendChild(createActiveTextEditorBox(state.activeTextEditor))
 	}
@@ -169,6 +185,38 @@ export function createAnnotationSelectionNode(element: AnnotationElement): SVGEl
 	return group
 }
 
+export function createMultiSelectionNode(elements: AnnotationElement[]): SVGElement {
+	const group = document.createElementNS(SVG_NS, 'g')
+	group.addClass('annotation-selection')
+
+	// Compute bounding box of all selected elements
+	let minX = Infinity
+	let minY = Infinity
+	let maxX = -Infinity
+	let maxY = -Infinity
+	for (const element of elements) {
+		const bounds = elementBounds(normalizeElementGeometry(element))
+		if (!bounds) continue
+		minX = Math.min(minX, bounds.x)
+		minY = Math.min(minY, bounds.y)
+		maxX = Math.max(maxX, bounds.x + bounds.width)
+		maxY = Math.max(maxY, bounds.y + bounds.height)
+	}
+
+	if (minX < Infinity) {
+		const padding = SELECTION_PADDING
+		const rect = document.createElementNS(SVG_NS, 'rect')
+		rect.addClass('annotation-selection-box')
+		rect.setAttr('x', `${minX - padding}`)
+		rect.setAttr('y', `${minY - padding}`)
+		rect.setAttr('width', `${maxX - minX + padding * 2}`)
+		rect.setAttr('height', `${maxY - minY + padding * 2}`)
+		group.appendChild(rect)
+	}
+
+	return group
+}
+
 function createMarkdownTextNode(
 	element: TextAnnotationElement,
 	style: Required<AnnotationStyle>,
@@ -204,7 +252,7 @@ function createMarkdownTextNode(
 			element,
 			container,
 			context.isDestroyed,
-			context.selectedId
+			context.selectedIds
 		)
 	})
 	return foreignObject
@@ -226,7 +274,7 @@ function updateTextBoxHeightFromRenderedContent(
 	element: TextAnnotationElement,
 	container: HTMLElement,
 	isDestroyed: boolean,
-	selectedId: string | null
+	selectedIds: ReadonlySet<string>
 ): void {
 	if (isDestroyed || !container.isConnected) {
 		return
@@ -243,7 +291,7 @@ function updateTextBoxHeightFromRenderedContent(
 		textFontSize(element) * EXCALIDRAW_TEXT_LINE_HEIGHT,
 		measuredHeight
 	)
-	if (isDebugEnabled() && selectedId === element.id) {
+	if (isDebugEnabled() && selectedIds.has(element.id)) {
 		console.debug('[annotation] text-measure', {
 			id: element.id,
 			text: element.text,
@@ -256,7 +304,7 @@ function updateTextBoxHeightFromRenderedContent(
 			scrollHeight: container.scrollHeight,
 			nextWidth,
 			nextHeight,
-			selected: selectedId === element.id
+			selected: selectedIds.has(element.id)
 		})
 	}
 	container.parentElement?.setAttr('width', `${nextWidth}`)

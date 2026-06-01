@@ -13,6 +13,7 @@ export const DOUBLE_CLICK_DISTANCE_PX = 12
 export type InteractionState = {
 	type: 'move' | 'resize' | 'rotate'
 	elementId: string
+	selectedIds?: Set<string>
 	startPoint: AnnotationPoint
 	baseScene: AnnotationScene
 	handle?: SelectionHandle

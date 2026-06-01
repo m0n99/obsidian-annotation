@@ -8,6 +8,7 @@ import {
 } from '../drawing/types'
 import { containsPoint } from '../drawing/hit-test'
 import {
+	elementBounds,
 	resizeEdgeAtPoint,
 	selectionHandleCenter,
 	selectionHandlesForElement,
@@ -75,4 +76,35 @@ export function findEventTextElement(
 	const id = target?.getAttr('data-annotation-id')
 	const element = id ? scene.elements.find((candidate) => candidate.id === id) : null
 	return element?.type === 'text' ? element : null
+}
+
+export function marqueeToRect(
+	start: AnnotationPoint,
+	end: AnnotationPoint
+): { x: number; y: number; width: number; height: number } {
+	return {
+		x: Math.min(start.x, end.x),
+		y: Math.min(start.y, end.y),
+		width: Math.abs(end.x - start.x),
+		height: Math.abs(end.y - start.y)
+	}
+}
+
+export function findElementsInRect(
+	scene: AnnotationScene,
+	rect: { x: number; y: number; width: number; height: number }
+): AnnotationElement[] {
+	const x2 = rect.x + rect.width
+	const y2 = rect.y + rect.height
+
+	return scene.elements.filter((element) => {
+		const bounds = elementBounds(normalizeElementGeometry(element))
+		if (!bounds) return false
+		return (
+			bounds.x >= rect.x &&
+			bounds.y >= rect.y &&
+			bounds.x + bounds.width <= x2 &&
+			bounds.y + bounds.height <= y2
+		)
+	})
 }

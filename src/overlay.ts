@@ -880,6 +880,7 @@ export class AnnotationEditorOverlay {
 	// -- Text editing -----------------------------------------------------
 
 	private startInlineTextEditor(target: AnnotationPoint | TextAnnotationElement) {
+		const vb = this.svgEl.viewBox.baseVal
 		this.textEditor.start(
 			this.rootEl,
 			target,
@@ -888,7 +889,9 @@ export class AnnotationEditorOverlay {
 				fontSize: this.currentFontSize,
 				fontFamily: this.currentFontFamily,
 				textAlign: this.currentTextAlign,
-				markdownFontSize: this.markdownFontSizePx
+				markdownFontSize: this.markdownFontSizePx,
+				viewBoxX: vb.x || 0,
+				viewBoxY: vb.y || 0
 			},
 			this.createTextEditorHost()
 		)

@@ -115,8 +115,8 @@ export function createAnnotationElementNode(
 function createActiveTextEditorBox(textarea: HTMLTextAreaElement): SVGElement {
 	const rect = document.createElementNS(SVG_NS, 'rect')
 	rect.addClass('annotation-text-editor-box')
-	const x = Number.parseFloat(textarea.style.left) || 0
-	const y = Number.parseFloat(textarea.style.top) || 0
+	const x = Number.parseFloat(textarea.dataset.annotationSvgX ?? '') || Number.parseFloat(textarea.style.left) || 0
+	const y = Number.parseFloat(textarea.dataset.annotationSvgY ?? '') || Number.parseFloat(textarea.style.top) || 0
 	const width = Number.parseFloat(textarea.style.width) || textarea.offsetWidth
 	const height = Number.parseFloat(textarea.style.height) || textarea.offsetHeight
 	rect.setAttr('x', `${x - SELECTION_PADDING}`)

@@ -72,6 +72,8 @@ export class OverlayTextEditor {
 			fontFamily?: number
 			textAlign?: 'left' | 'center' | 'right'
 			markdownFontSize: number
+			viewBoxX: number
+			viewBoxY: number
 		},
 		host: TextEditorHost
 	): void {
@@ -95,8 +97,12 @@ export class OverlayTextEditor {
 			cls: 'annotation-inline-text-editor',
 			attr: { spellcheck: 'false' }
 		})
-		textarea.style.left = `${point.x}px`
-		textarea.style.top = `${point.y}px`
+		// Convert SVG coords to pixel coords for CSS positioning
+		textarea.style.left = `${point.x - options.viewBoxX}px`
+		textarea.style.top = `${point.y - options.viewBoxY}px`
+		// Store SVG coords for rendering overlay box
+		textarea.dataset.annotationSvgX = `${point.x}`
+		textarea.dataset.annotationSvgY = `${point.y}`
 		textarea.style.color = style.strokeColor
 		textarea.style.font = fontFamily
 			? annotationTextFontString(fontSize, fontFamily)

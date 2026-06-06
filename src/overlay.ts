@@ -18,6 +18,7 @@ import {
 	cursorForSelectionHandle,
 	distance,
 	elementBounds,
+	moveElement,
 	rotationCenterForElement
 } from './drawing/geometry'
 import {
@@ -408,8 +409,39 @@ export class AnnotationEditorOverlay {
 			return
 		}
 
+		if (this.selectedIds.size > 0 && this.handleArrowKey(event)) {
+			event.preventDefault()
+			event.stopPropagation()
+			return
+		}
+
 		event.preventDefault()
 		event.stopPropagation()
+	}
+
+	private handleArrowKey(event: KeyboardEvent): boolean {
+		const step = event.shiftKey ? 10 : 1
+		let dx = 0
+		let dy = 0
+
+		if (event.key === 'ArrowLeft') dx = -step
+		else if (event.key === 'ArrowRight') dx = step
+		else if (event.key === 'ArrowUp') dy = -step
+		else if (event.key === 'ArrowDown') dy = step
+		else return false
+
+		this.moveSelectedBy(dx, dy)
+		return true
+	}
+
+	private moveSelectedBy(dx: number, dy: number) {
+		const ids = this.selectedIds
+		this.commitSceneMutation({
+			elements: this.scene.elements.map((element) =>
+				ids.has(element.id) ? moveElement(element, dx, dy) : element
+			)
+		})
+		this.renderScene()
 	}
 
 	private isOverlayKeyboardTarget(target: EventTarget | null) {

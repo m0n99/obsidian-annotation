@@ -1,7 +1,4 @@
-import {
-	ERASER_CURSOR_RADIUS_PX,
-	ERASER_CURSOR_SIZE_PX
-} from './utils'
+import { ERASER_CURSOR_RADIUS_PX, ERASER_CURSOR_SIZE_PX } from './utils'
 
 export function createEraserCursor(contentEl: HTMLElement): () => string {
 	let theme: 'light' | 'dark' | null = null

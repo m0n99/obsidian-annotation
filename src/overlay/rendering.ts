@@ -28,7 +28,7 @@ import { createRoughElementNode, createSvgDefs, penElementPath } from '../drawin
 import { normalizeElementGeometry, styleForElement } from '../drawing/scene'
 import { annotationTextFontString } from '../drawing/excalidraw-adapter'
 import { getEditorEl } from '../editor-dom'
-import { isDebugEnabled, DEBUG_GEOMETRY_VERSION, radiansToDegrees } from './utils'
+import { isDebugEnabled, radiansToDegrees } from './utils'
 
 export type OverlayRenderState = {
 	readonly scene: AnnotationScene
@@ -93,7 +93,9 @@ export function renderOverlayScene(
 		: state.scene.elements.filter((element) => state.selectedIds.has(element.id))
 
 	if (selectedElements.length === 1) {
-		svgEl.appendChild(createAnnotationSelectionNode(normalizeElementGeometry(selectedElements[0]!)))
+		svgEl.appendChild(
+			createAnnotationSelectionNode(normalizeElementGeometry(selectedElements[0]!))
+		)
 	} else if (selectedElements.length > 1) {
 		svgEl.appendChild(createMultiSelectionNode(selectedElements))
 	} else if (state.activeTextEditor?.dataset.annotationAutoResize === 'false') {
@@ -131,8 +133,14 @@ export function createAnnotationElementNode(
 function createActiveTextEditorBox(textarea: HTMLTextAreaElement): SVGElement {
 	const rect = document.createElementNS(SVG_NS, 'rect')
 	rect.addClass('annotation-text-editor-box')
-	const x = Number.parseFloat(textarea.dataset.annotationSvgX ?? '') || Number.parseFloat(textarea.style.left) || 0
-	const y = Number.parseFloat(textarea.dataset.annotationSvgY ?? '') || Number.parseFloat(textarea.style.top) || 0
+	const x =
+		Number.parseFloat(textarea.dataset.annotationSvgX ?? '') ||
+		Number.parseFloat(textarea.style.left) ||
+		0
+	const y =
+		Number.parseFloat(textarea.dataset.annotationSvgY ?? '') ||
+		Number.parseFloat(textarea.style.top) ||
+		0
 	const width = Number.parseFloat(textarea.style.width) || textarea.offsetWidth
 	const height = Number.parseFloat(textarea.style.height) || textarea.offsetHeight
 	rect.setAttr('x', `${x - SELECTION_PADDING}`)
@@ -264,10 +272,7 @@ function applyElementRotation(node: SVGElement, element: AnnotationElement): voi
 	}
 
 	const center = rotationCenterForElement(element)
-	node.setAttr(
-		'transform',
-		`rotate(${radiansToDegrees(element.angle)} ${center.x} ${center.y})`
-	)
+	node.setAttr('transform', `rotate(${radiansToDegrees(element.angle)} ${center.x} ${center.y})`)
 }
 
 function updateTextBoxHeightFromRenderedContent(
@@ -287,10 +292,7 @@ function updateTextBoxHeightFromRenderedContent(
 	const measuredWidth = Math.ceil(contentBounds.width)
 	const measuredHeight = Math.ceil(contentBounds.height)
 	const nextWidth = Math.max(TEXT_MIN_BOX_WIDTH, measuredWidth)
-	const nextHeight = Math.max(
-		textFontSize(element) * EXCALIDRAW_TEXT_LINE_HEIGHT,
-		measuredHeight
-	)
+	const nextHeight = Math.max(textFontSize(element) * EXCALIDRAW_TEXT_LINE_HEIGHT, measuredHeight)
 	if (isDebugEnabled() && selectedIds.has(element.id)) {
 		console.debug('[annotation] text-measure', {
 			id: element.id,
@@ -337,13 +339,9 @@ function measureRenderedTextContent(container: HTMLElement): { width: number; he
 		: { width: container.scrollWidth, height: container.scrollHeight }
 }
 
-export function updateMarkdownTextScale(
-	view: MarkdownView,
-	defaultFontSize: number
-): number {
+export function updateMarkdownTextScale(view: MarkdownView, defaultFontSize: number): number {
 	const editorEl = getEditorEl(view)
-	const markdownTextEl =
-		editorEl?.querySelector<HTMLElement>('.cm-content, .cm-line') ?? editorEl
+	const markdownTextEl = editorEl?.querySelector<HTMLElement>('.cm-content, .cm-line') ?? editorEl
 	const fontSize = markdownTextEl
 		? Number.parseFloat(window.getComputedStyle(markdownTextEl).fontSize)
 		: Number.NaN

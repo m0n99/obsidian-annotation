@@ -12,13 +12,13 @@ src/
 ├── overlay.ts       # AnnotationEditorOverlay orchestrator; delegates to overlay/ modules
 ├── overlay/         # all overlay sub-modules, owned by AnnotationEditorOverlay
 │   ├── utils.ts                 # shared constants, InteractionState type, angle/math helpers
-│   ├── rendering.ts             # SVG scene rendering, element/selection/markdown-text node creation
+│   ├── rendering.ts             # SVG scene rendering, element/selection/marquee node creation
 │   ├── text-editor.ts           # OverlayTextEditor class; inline text editing DOM lifecycle
 │   ├── cursor.ts                # eraser cursor and cursor resolution logic
-│   ├── hit-test.ts              # element/handle hit detection (pure functions)
+│   ├── hit-test.ts              # element/handle hit detection, marquee rect computation
 │   ├── pointer.ts               # pointer coordinate conversion, pen pressure, debug logging
-│   ├── interaction.ts           # move/resize/rotate interaction application
-│   ├── style.ts                 # style and text property update logic
+│   ├── interaction.ts           # move/resize/rotate interaction (multi-element move)
+│   ├── style.ts                 # style and text property update (multi-element aware)
 │   ├── save.ts                  # scene save/load, coordinate translation
 │   ├── toolbar.ts               # toolbar tool buttons and style panel toggle
 │   ├── style-controls.ts        # shape style panel (stroke, fill, roughness, etc.)
@@ -27,6 +27,7 @@ src/
 │   └── shared-controls.ts       # shared UI control helpers (color picker, opacity slider)
 ├── editor-dom.ts     # Obsidian editor DOM helpers for overlay positioning
 ├── persistence.ts    # annotation data storage format and paths
+├── styles.src.css    # CSS source (Tailwind-built to dist/styles.css)
 └── drawing/          # annotation types, geometry, scene normalization, rendering, Excalidraw adapters
 ```
 
@@ -38,18 +39,18 @@ src/
 | Ribbon and commands | `main.ts` | Stable command IDs; do not rename casually |
 | Active markdown view wiring | `main.ts` | Workspace and metadata events use Obsidian registration helpers |
 | Overlay orchestrator | `overlay.ts` | `AnnotationEditorOverlay` — state, events, undo/redo, toolbar wiring |
-| SVG rendering | `overlay/rendering.ts` | `renderOverlayScene`, element/selection node creation |
+| SVG rendering | `overlay/rendering.ts` | `renderOverlayScene`, element/selection/marquee node creation |
 | Inline text editing | `overlay/text-editor.ts` | `OverlayTextEditor` class; textarea DOM lifecycle |
 | Cursor | `overlay/cursor.ts` | `createEraserCursor`, `resolveCursor` |
-| Hit testing | `overlay/hit-test.ts` | `findElementAtPoint`, `findSelectionHandleAtPoint` |
+| Hit testing, marquee | `overlay/hit-test.ts` | `findElementAtPoint`, `findElementsInRect`, `marqueeToRect` |
 | Pointer coordinates | `overlay/pointer.ts` | `pointerPoint`, `penPoint`, debug geometry logging |
-| Interaction transforms | `overlay/interaction.ts` | `applyInteraction`, `rotateElement` |
-| Style updates | `overlay/style.ts` | `applyStyleUpdate`, `applyTextPropertyUpdate` |
+| Interaction transforms | `overlay/interaction.ts` | `applyInteraction` (single + multi-element move) |
+| Style updates | `overlay/style.ts` | `applyStyleUpdate`, `applyTextPropertyUpdate` (multi-element aware) |
 | Save / load | `overlay/save.ts` | `saveScene`, `loadScene`, coordinate translation |
 | Toolbar UI | `overlay/toolbar.ts` | Tool buttons, style panel toggle |
 | Shape style controls | `overlay/style-controls.ts` | Stroke, fill, roughness, edges, opacity |
 | Text style controls | `overlay/text-style-controls.ts` | Font family, size, text alignment |
-| Scene mutations | `overlay/scene-commands.ts` | `duplicateElement`, `moveElementLayer` |
+| Scene mutations | `overlay/scene-commands.ts` | `duplicateElement`, `moveElementLayer` (multi-element) |
 | Editor DOM positioning | `editor-dom.ts` | Overlay host/mount/sizer helpers |
 | Annotation persistence | `main.ts` + `persistence.ts` | Frontmatter stores generated id; scene JSON in `.annotation/` |
 | Drawing behavior | `drawing/` | See `drawing/AGENTS.md` |

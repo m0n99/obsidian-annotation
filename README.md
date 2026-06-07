@@ -8,10 +8,11 @@ It adds an editor overlay for drawing Excalidraw-style shapes directly on top of
 
 - Always-visible note action button for annotation drawing.
 - Rectangle, diamond, ellipse, arrow, line, freehand, text, eraser, selection, resize, rotate, duplicate, delete, and layer controls.
+- Multi-select via shift-click toggle and marquee drag-select; move, style, duplicate, and delete as a group.
 - Excalidraw-style toolbar and options panel.
 - Per-note annotation state stored through frontmatter.
 - Annotation scene data stored outside Markdown in `.annotation/<id>.json`.
-- X coordinates are persisted relative to the center of CodeMirror's `.cm-sizer`, so drawings stay aligned when readable width changes.
+- X coordinates are persisted relative to the left edge of CodeMirror's `.cm-sizer`; legacy scenes with center-based coordinates are migrated on load.
 
 ## Storage model
 
@@ -36,16 +37,16 @@ The Markdown body is not modified with embedded annotation JSON sections.
 Install dependencies:
 
 ```bash
-npm install
+bun install
 ```
 
 Build the plugin:
 
 ```bash
-npm run build
+bun run build
 ```
 
-Run esbuild in watch mode:
+Run dev build in watch mode:
 
 ```bash
 npm run dev
@@ -54,13 +55,13 @@ npm run dev
 Build Excalidraw package dependencies when needed:
 
 ```bash
-npm run build:excalidraw
+bun run build:excalidraw
 ```
 
 Build Excalidraw and the plugin together:
 
 ```bash
-npm run build:with-excalidraw
+bun run build:with-excalidraw
 ```
 
 ## Release assets

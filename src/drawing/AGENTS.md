@@ -42,6 +42,20 @@ drawing/
 - DOM use is expected in `render.ts` and `text.ts`; Obsidian MarkdownRenderer/editor DOM assumptions stay outside drawing.
 - Keep `any` casts contained near facade/adapter calls. Do not leak `any` into `types.ts` or public callers.
 
+## FACADE ARCHITECTURE
+
+`excalidraw.ts` is a pure re-export facade — every import from `@excalidraw/*` is re-exported unchanged, plus the local `ANNOTATION_ZOOM` constant. This centralizes package structure knowledge so the rest of the codebase doesn't depend on `@excalidraw/*` import paths.
+
+All wrappers in this directory are genuine adapters with Annotation-specific logic:
+- `bumpElementVersion` (not `bumpVersion`) — adds `updated` timestamp and custom nonce
+- `normalizeElement` — fills defaults for all Excalidraw-compatible fields
+- `absolutePoints` — converts local points to document-space with pressure data
+- `toElementsMap` — type-cast map for Excalidraw API compatibility
+- `containsPoint` — wraps `hitElementItself` with freedraw/linear segment fallback
+- `AnnotationSceneAdapter` — implements Excalidraw's Scene interface for resize
+
+No thin wrappers that should be replaced with direct re-exports.
+
 ## INVARIANTS
 
 - `normalizeScene(...)` is the compatibility gate for persisted data; never trust JSON loaded from notes.

@@ -1,4 +1,3 @@
-import { isLinearElementType } from './excalidraw'
 import type {
 	AnnotationElement,
 	AnnotationPoint,

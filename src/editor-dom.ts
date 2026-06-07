@@ -15,9 +15,7 @@ export function sizeOverlayToDocumentPlane(
 	const editorRect = editorEl?.getBoundingClientRect() ?? hostRect
 
 	// Static offset: contentContainer relative to scroller
-	const top = contentContainerEl
-		? offsetTopRelativeTo(contentContainerEl, overlayHost)
-		: 0
+	const top = contentContainerEl ? offsetTopRelativeTo(contentContainerEl, overlayHost) : 0
 	const containerLeft = contentContainerEl
 		? offsetLeftRelativeTo(contentContainerEl, overlayHost)
 		: 0
@@ -55,7 +53,11 @@ export function getEditorSizerEl(view: MarkdownView) {
 export function getContentContainerCenterX(view: MarkdownView, relativeTo?: Element) {
 	const container = getEditorContentContainer(view)
 	if (!relativeTo) {
-		return (container?.scrollWidth || container?.clientWidth || getEditorOverlayMount(view).clientWidth) / 2
+		return (
+			(container?.scrollWidth ||
+				container?.clientWidth ||
+				getEditorOverlayMount(view).clientWidth) / 2
+		)
 	}
 
 	const referenceRect = relativeTo.getBoundingClientRect()

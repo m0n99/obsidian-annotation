@@ -7,12 +7,7 @@ import {
 	type AnnotationStyle,
 	type TextAnnotationElement
 } from '../drawing/types'
-import {
-	textBoxHeight,
-	textBoxWidth,
-	textFontFamily,
-	textFontSize
-} from '../drawing/geometry'
+import { textBoxHeight, textBoxWidth, textFontFamily, textFontSize } from '../drawing/geometry'
 import {
 	annotationTextFontString,
 	bumpElementVersion,
@@ -154,25 +149,27 @@ export class OverlayTextEditor {
 				const currentElement = capturedHost.findTextElement(capturedElementId ?? '')
 				if (text && currentElement) {
 					capturedHost.commitSceneMutation({
-						elements: capturedHost.getScene().elements.map((el) =>
-							el.id === currentElement.id
-								? updateTextElement(
-										currentElement,
-										text,
-										width,
-										height,
-										textFontSize(currentElement),
-										styleForElement(currentElement),
-										autoResize
-									)
-								: el
-						)
+						elements: capturedHost
+							.getScene()
+							.elements.map((el) =>
+								el.id === currentElement.id
+									? updateTextElement(
+											currentElement,
+											text,
+											width,
+											height,
+											textFontSize(currentElement),
+											styleForElement(currentElement),
+											autoResize
+										)
+									: el
+							)
 					})
 				} else if (!text && capturedElementId) {
 					capturedHost.commitSceneMutation({
-						elements: capturedHost.getScene().elements.filter(
-							(el) => el.id !== capturedElementId
-						)
+						elements: capturedHost
+							.getScene()
+							.elements.filter((el) => el.id !== capturedElementId)
 					})
 				}
 			} else if (text) {
@@ -278,9 +275,7 @@ export class OverlayTextEditor {
 	}
 }
 
-export function resizeTextBoxForStyleChange(
-	element: TextAnnotationElement
-): TextAnnotationElement {
+export function resizeTextBoxForStyleChange(element: TextAnnotationElement): TextAnnotationElement {
 	const text = element.originalText ?? element.text
 	const fontSize = textFontSize(element)
 	const fontFamily = textFontFamily(element)

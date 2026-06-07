@@ -11,8 +11,6 @@
  *   // adapter.mutatedElements contains the updated elements
  */
 
-import type { ExcalidrawElement, ElementsMap } from './excalidraw'
-
 export class AnnotationSceneAdapter {
 	private elementsMap: Map<string, any>
 	private mutated = new Set<string>()

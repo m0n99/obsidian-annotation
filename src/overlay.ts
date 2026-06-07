@@ -1,7 +1,6 @@
 import { App, Component, MarkdownView, TFile } from 'obsidian'
 import { preloadExcalidrawFonts } from './drawing/fonts'
 import {
-	SELECTION_HANDLE_SIZE,
 	SVG_NS,
 	TEXT_MARKDOWN_DEFAULT_FONT_SIZE,
 	type AnnotationElement,
@@ -52,10 +51,7 @@ import {
 	renderOverlayScene,
 	updateMarkdownTextScale
 } from './overlay/rendering'
-import {
-	OverlayTextEditor,
-	type TextEditorHost
-} from './overlay/text-editor'
+import { OverlayTextEditor, type TextEditorHost } from './overlay/text-editor'
 import { createEraserCursor, resolveCursor } from './overlay/cursor'
 import {
 	cloneScene,
@@ -245,7 +241,10 @@ export class AnnotationEditorOverlay {
 	}
 
 	resize() {
-		this.markdownFontSizePx = updateMarkdownTextScale(this.view, TEXT_MARKDOWN_DEFAULT_FONT_SIZE)
+		this.markdownFontSizePx = updateMarkdownTextScale(
+			this.view,
+			TEXT_MARKDOWN_DEFAULT_FONT_SIZE
+		)
 		sizeOverlayToDocumentPlane(
 			this.view,
 			this.overlayHost,
@@ -479,7 +478,14 @@ export class AnnotationEditorOverlay {
 		const point = pointerPoint(this.svgEl, event)
 
 		if (isDebugEnabled()) {
-			logGeometry(this.svgEl, this.overlayMountEl, this.overlayHost, 'pointerdown', event, point)
+			logGeometry(
+				this.svgEl,
+				this.overlayMountEl,
+				this.overlayHost,
+				'pointerdown',
+				event,
+				point
+			)
 		}
 
 		if (this.tool === 'select') {
@@ -489,7 +495,9 @@ export class AnnotationEditorOverlay {
 				// Shift-click toggles element in/out of selection
 				if (event.shiftKey) {
 					if (this.selectedIds.has(hit.id)) {
-						this.selectedIds = new Set([...this.selectedIds].filter((id) => id !== hit.id))
+						this.selectedIds = new Set(
+							[...this.selectedIds].filter((id) => id !== hit.id)
+						)
 					} else {
 						this.selectedIds = new Set([...this.selectedIds, hit.id])
 					}
@@ -499,7 +507,11 @@ export class AnnotationEditorOverlay {
 					}
 				}
 
-				if (hit.type === 'text' && this.selectedIds.has(hit.id) && this.isSelectDoubleClick(point, hit.id, event)) {
+				if (
+					hit.type === 'text' &&
+					this.selectedIds.has(hit.id) &&
+					this.isSelectDoubleClick(point, hit.id, event)
+				) {
 					this.startInlineTextEditor(hit)
 					this.renderToolbar()
 					this.renderScene()
@@ -614,7 +626,8 @@ export class AnnotationEditorOverlay {
 		}
 
 		const selected =
-			findEventTextElement(this.scene, event) ?? findElementAtPoint(this.scene, pointerPoint(this.svgEl, event))
+			findEventTextElement(this.scene, event) ??
+			findElementAtPoint(this.scene, pointerPoint(this.svgEl, event))
 		if (selected?.type !== 'text') {
 			return
 		}
@@ -960,7 +973,10 @@ export class AnnotationEditorOverlay {
 		const result = applyTextPropertyUpdate(this.scene, this.selectedIds, props)
 		if (result) {
 			this.commitSceneMutation({ elements: result.elements })
-			if (result.updatedTextElement && result.updatedTextElement.id === this.textEditor.currentElementId) {
+			if (
+				result.updatedTextElement &&
+				result.updatedTextElement.id === this.textEditor.currentElementId
+			) {
 				this.textEditor.syncStyle(result.updatedTextElement, this.markdownFontSizePx)
 			}
 		}
@@ -991,7 +1007,9 @@ export class AnnotationEditorOverlay {
 	private createTextEditorHost(): TextEditorHost {
 		const self = this
 		return {
-			get isDestroyed() { return self.isDestroyed },
+			get isDestroyed() {
+				return self.isDestroyed
+			},
 			getScene: () => self.scene,
 			findTextElement: (id: string) =>
 				self.scene.elements.find(
@@ -1014,7 +1032,8 @@ export class AnnotationEditorOverlay {
 
 	private updateElementHover(point: AnnotationPoint) {
 		const primaryId = this.selectedIds.size === 1 ? [...this.selectedIds][0]! : null
-		const handle = this.tool === 'select' ? findSelectionHandleAtPoint(this.scene, primaryId, point) : null
+		const handle =
+			this.tool === 'select' ? findSelectionHandleAtPoint(this.scene, primaryId, point) : null
 		const hoverElement = handle
 			? null
 			: this.tool === 'text'
@@ -1055,8 +1074,12 @@ export class AnnotationEditorOverlay {
 			app: self.plugin.app,
 			view: self.view,
 			component: self.plugin,
-			get isDestroyed() { return self.isDestroyed },
-			get selectedIds() { return self.selectedIds }
+			get isDestroyed() {
+				return self.isDestroyed
+			},
+			get selectedIds() {
+				return self.selectedIds
+			}
 		})
 	}
 
@@ -1105,7 +1128,10 @@ export class AnnotationEditorOverlay {
 			this.saveHost,
 			file,
 			loadVersion,
-			() => !this.isDestroyed && this.isForFile(this.view.file) && this.mutationVersion === loadVersion,
+			() =>
+				!this.isDestroyed &&
+				this.isForFile(this.view.file) &&
+				this.mutationVersion === loadVersion,
 			this.view,
 			this.svgEl
 		)

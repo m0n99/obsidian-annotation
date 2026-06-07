@@ -10,10 +10,7 @@ export interface SaveHost {
 	saveAnnotationData(file: TFile, data: AnnotationData): Promise<void>
 }
 
-export function scheduleSave(
-	currentTimer: number | null,
-	onSave: () => void
-): number {
+export function scheduleSave(currentTimer: number | null, onSave: () => void): number {
 	if (currentTimer !== null) {
 		window.clearTimeout(currentTimer)
 	}
@@ -23,10 +20,7 @@ export function scheduleSave(
 	}, SCENE_SAVE_DELAY_MS) as unknown as number
 }
 
-export function flushSave(
-	currentTimer: number | null,
-	onSave: () => void
-): number | null {
+export function flushSave(currentTimer: number | null, onSave: () => void): number | null {
 	if (currentTimer === null) {
 		return null
 	}

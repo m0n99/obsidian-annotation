@@ -157,20 +157,12 @@ export function elementBounds(element: AnnotationElement): ElementBounds | null 
 }
 
 export function selectionHandlesForElement(element: AnnotationElement): SelectionHandle[] {
-	if (element.type === 'freedraw') {
-		return ['nw', 'ne', 'se', 'sw', 'rotation']
-	}
-
-	if (element.type === 'text') {
-		return ['nw', 'ne', 'se', 'sw', 'rotation']
-	}
-
-	if (isBoxElement(element)) {
-		return ['nw', 'ne', 'se', 'sw', 'rotation']
-	}
-
 	if (element.type === 'line' || element.type === 'arrow') {
 		return ['start', 'end']
+	}
+
+	if (isBoxElement(element) || element.type === 'freedraw' || element.type === 'text') {
+		return ['nw', 'ne', 'se', 'sw', 'rotation']
 	}
 
 	return []

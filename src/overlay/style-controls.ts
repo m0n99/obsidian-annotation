@@ -28,11 +28,7 @@ import {
 	createStrokeWidthThinIcon,
 	createTrashIcon
 } from '../drawing/icons'
-import {
-	renderButtonListFieldset,
-	renderColorRow,
-	renderOpacitySlider
-} from './shared-controls'
+import { renderButtonListFieldset, renderColorRow, renderOpacitySlider } from './shared-controls'
 import type { OverlayLayerDirection } from './toolbar'
 
 export type StyleControlsState = {

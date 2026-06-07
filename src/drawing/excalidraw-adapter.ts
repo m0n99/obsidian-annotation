@@ -12,7 +12,6 @@ import {
 import {
 	DEFAULT_ELEMENT_PROPS,
 	FONT_FAMILY,
-	bumpVersion,
 	getFontString,
 	getLineHeight,
 	hashString,
@@ -214,9 +213,7 @@ export function annotationTextFontString(
 }
 
 export function normalizeAnnotationFontFamily(fontFamily: number) {
-	return fontFamily === FONT_FAMILY.Virgil
-		? DEFAULT_ANNOTATION_FONT_FAMILY
-		: fontFamily
+	return fontFamily === FONT_FAMILY.Virgil ? DEFAULT_ANNOTATION_FONT_FAMILY : fontFamily
 }
 
 export function normalizeElement(element: Record<string, unknown>): AnnotationElement {

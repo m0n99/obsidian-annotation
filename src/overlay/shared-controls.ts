@@ -1,7 +1,4 @@
-import {
-	COLOR_OUTLINE_CONTRAST_THRESHOLD,
-	isColorDark
-} from '../drawing/excalidraw'
+import { COLOR_OUTLINE_CONTRAST_THRESHOLD, isColorDark } from '../drawing/excalidraw'
 
 export function renderColorRow(
 	container: HTMLElement,
@@ -85,9 +82,7 @@ export function renderOpacitySlider(
 	const positionBubble = (value: number) => {
 		const inputWidth = input.offsetWidth
 		const thumbSize =
-			parseFloat(
-				getComputedStyle(input).getPropertyValue('--slider-thumb-size')
-			) || 16
+			parseFloat(getComputedStyle(input).getPropertyValue('--slider-thumb-size')) || 16
 		const pos = (value / 100) * (inputWidth - thumbSize) + thumbSize / 2
 		bubble.style.left = `${pos}px`
 	}

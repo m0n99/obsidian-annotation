@@ -1,9 +1,6 @@
 import type { AnnotationStyle } from '../drawing/types'
 import { TEXT_FONT_SIZES } from '../drawing/types'
-import {
-	DEFAULT_ELEMENT_STROKE_PICKS,
-	FONT_FAMILY
-} from '../drawing/excalidraw'
+import { DEFAULT_ELEMENT_STROKE_PICKS, FONT_FAMILY } from '../drawing/excalidraw'
 import {
 	createBringForwardIcon,
 	createBringToFrontIcon,
@@ -22,11 +19,7 @@ import {
 	createTextAlignRightIcon,
 	createTrashIcon
 } from '../drawing/icons'
-import {
-	renderButtonListFieldset,
-	renderColorRow,
-	renderOpacitySlider
-} from './shared-controls'
+import { renderButtonListFieldset, renderColorRow, renderOpacitySlider } from './shared-controls'
 import type { OverlayLayerDirection } from './toolbar'
 
 export type TextStyleControlsState = {

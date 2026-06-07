@@ -3,7 +3,6 @@ import {
 	SHIFT_LOCKING_ANGLE,
 	DEFAULT_FONT_SIZE,
 	FONT_FAMILY,
-	MIN_FONT_SIZE,
 	DEFAULT_ELEMENT_PROPS,
 	getFontFamilyString,
 	getLineHeight
@@ -25,11 +24,6 @@ export const SELECTION_HANDLE_SIZE = 8
 /** Minimum font size for Annotation text (Excalidraw's MIN_FONT_SIZE is 1; we use a larger minimum). */
 export const TEXT_MIN_FONT_SIZE = 8
 export const TEXT_MIN_BOX_WIDTH = 24
-export const DEFAULT_STROKE_COLOR = DEFAULT_ELEMENT_PROPS.strokeColor
-export const DEFAULT_BACKGROUND_COLOR = DEFAULT_ELEMENT_PROPS.backgroundColor
-export const DEFAULT_STROKE_WIDTH = DEFAULT_ELEMENT_PROPS.strokeWidth
-export const DEFAULT_ROUGHNESS = DEFAULT_ELEMENT_PROPS.roughness
-export const DEFAULT_OPACITY = DEFAULT_ELEMENT_PROPS.opacity
 export const EXCALIDRAW_FONT_FAMILY = getFontFamilyString({ fontFamily: FONT_FAMILY.Nunito })
 export const EXCALIDRAW_TEXT_LINE_HEIGHT = getLineHeight(FONT_FAMILY.Nunito)
 export const EXCALIDRAW_FONT_FAMILY_ID = FONT_FAMILY.Nunito

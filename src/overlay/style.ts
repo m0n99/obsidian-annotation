@@ -1,4 +1,9 @@
-import type { AnnotationElement, AnnotationStyle, AnnotationScene, TextAnnotationElement } from '../drawing/types'
+import type {
+	AnnotationElement,
+	AnnotationStyle,
+	AnnotationScene,
+	TextAnnotationElement
+} from '../drawing/types'
 import { bumpElementVersion } from '../drawing/excalidraw-adapter'
 import { resizeTextBoxForStyleChange } from './text-editor'
 
@@ -9,9 +14,7 @@ export function applyStyleToElement(
 	const next: AnnotationElement = {
 		...element,
 		...(style.strokeColor !== undefined ? { strokeColor: style.strokeColor } : {}),
-		...(style.backgroundColor !== undefined
-			? { backgroundColor: style.backgroundColor }
-			: {}),
+		...(style.backgroundColor !== undefined ? { backgroundColor: style.backgroundColor } : {}),
 		...(style.fillStyle !== undefined ? { fillStyle: style.fillStyle } : {}),
 		...(style.strokeWidth !== undefined ? { strokeWidth: style.strokeWidth } : {}),
 		...(style.strokeStyle !== undefined ? { strokeStyle: style.strokeStyle } : {}),

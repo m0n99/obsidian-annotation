@@ -214,6 +214,14 @@
 	vector-effect: non-scaling-stroke;
 }
 
+.annotation-selection-box-dashed {
+	fill: transparent;
+	stroke: var(--color-primary);
+	stroke-width: 1;
+	stroke-dasharray: 2 4;
+	vector-effect: non-scaling-stroke;
+}
+
 .annotation-marquee {
 	fill: rgba(105, 101, 219, 0.05);
 	stroke: var(--color-primary);

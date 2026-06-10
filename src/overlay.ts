@@ -70,6 +70,7 @@ import {
 	findElementAtPoint,
 	findTextElementAtPoint,
 	findSelectionHandleAtPoint,
+	findMultiSelectionHandleAtPoint,
 	findEventTextElement,
 	findElementsInRect,
 	marqueeToRect
@@ -628,7 +629,31 @@ export class AnnotationEditorOverlay {
 				}
 				this.rememberSelectClick(point, hit.id, event)
 
-				// Handles only for single selection
+				// Multi-select handles (bounding box)
+				if (this.selectedIds.size > 1) {
+					const selectedElements = this.scene.elements.filter((e) => this.selectedIds.has(e.id))
+					const multiHandle = findMultiSelectionHandleAtPoint(selectedElements, point)
+					if (multiHandle) {
+						this.startPointerCapture(event)
+						this.interaction = {
+							type: multiHandle === 'rotation' ? 'rotate' : 'resize',
+							elementId: [...this.selectedIds][0]!,
+							selectedIds: new Set(this.selectedIds),
+							startPoint: point,
+							baseScene: cloneScene(this.scene),
+							handle: multiHandle,
+							didMutate: false,
+							lockAspectRatio: event.shiftKey,
+							startBounds: undefined,
+							rotationCenter: undefined,
+							startAngle: 0,
+							startPointerAngle: undefined
+						}
+						return
+					}
+				}
+
+				// Single-element handles
 				const primaryId = this.selectedIds.size === 1 ? [...this.selectedIds][0]! : null
 				const handle = primaryId
 					? findSelectionHandleAtPoint(this.scene, primaryId, point)
@@ -1148,9 +1173,17 @@ export class AnnotationEditorOverlay {
 	// -- Cursor / hover ---------------------------------------------------
 
 	private updateElementHover(point: AnnotationPoint) {
-		const primaryId = this.selectedIds.size === 1 ? [...this.selectedIds][0]! : null
-		const handle =
-			this.tool === 'select' ? findSelectionHandleAtPoint(this.scene, primaryId, point) : null
+		let handle: SelectionHandle | null = null
+		if (this.tool === 'select') {
+			if (this.selectedIds.size > 1) {
+				const selectedElements = this.scene.elements.filter((e) => this.selectedIds.has(e.id))
+				handle = findMultiSelectionHandleAtPoint(selectedElements, point)
+			}
+			if (!handle) {
+				const primaryId = this.selectedIds.size === 1 ? [...this.selectedIds][0]! : null
+				handle = findSelectionHandleAtPoint(this.scene, primaryId, point)
+			}
+		}
 		const hoverElement = handle
 			? null
 			: this.tool === 'text'

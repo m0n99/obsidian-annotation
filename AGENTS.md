@@ -1,12 +1,8 @@
 # PROJECT KNOWLEDGE BASE
 
-**Updated:** 2026-06-06
-**Commit:** f4aec3d
-**Branch:** main
-
 ## OVERVIEW
 
-Obsidian Annotation is a mobile-compatible Obsidian community plugin for document-first visual annotation. Root source is TypeScript bundled by Bun from `src/main.ts` to the release artifact `main.js`.
+Obsidian Annotation is an Obsidian community plugin for document-first visual annotation. Root source is TypeScript bundled by Bun from `src/main.ts` to the release artifact `main.js`.
 
 ## STRUCTURE
 
@@ -14,6 +10,8 @@ Obsidian Annotation is a mobile-compatible Obsidian community plugin for documen
 obsidian-annotation/
 ├── src/                 # plugin source; see src/AGENTS.md
 │   ├── main.ts          # Obsidian lifecycle + overlay orchestration hotspot
+│   ├── overlay.ts       # overlay orchestrator; delegates to overlay/ modules
+│   ├── overlay/         # rendering, hit-test, interaction, toolbar, style controls
 │   └── drawing/         # annotation model, geometry, rendering, Excalidraw adapters
 ├── excalidraw/          # Git submodule (upstream/Yarn monorepo); pinned at v0.18.0+
 ├── scripts/build.ts     # Bun build script; aliases Excalidraw dist packages
@@ -23,50 +21,13 @@ obsidian-annotation/
 └── main.js              # generated bundle; do not edit
 ```
 
-## WHERE TO LOOK
+## WHERE TO LOOK (high-level)
 
-| Task | Location | Notes |
-|------|----------|-------|
-| Obsidian lifecycle, commands, ribbon | `src/main.ts` | `AnnotationPlugin`; keep new code orchestration-only |
-| Overlay UI, pointer/keyboard flow | `src/overlay.ts` | `AnnotationEditorOverlay` orchestrator; delegates to `overlay/` modules |
-| SVG rendering, markdown text nodes | `src/overlay/rendering.ts` | SVG scene rendering, selection nodes, marquee rectangle |
-| Inline text editing | `src/overlay/text-editor.ts` | `OverlayTextEditor` class; DOM lifecycle for textarea |
-| Cursor / eraser cursor | `src/overlay/cursor.ts` | `createEraserCursor`, `resolveCursor` |
-| Hit testing, marquee selection | `src/overlay/hit-test.ts` | `findElementAtPoint`, `findElementsInRect`, `marqueeToRect` |
-| Pointer coordinates, debug | `src/overlay/pointer.ts` | `pointerPoint`, `penPoint`, geometry logging |
-| Interaction transforms | `src/overlay/interaction.ts` | `applyInteraction` (single + multi-element move) |
-| Style updates | `src/overlay/style.ts` | `applyStyleUpdate`, `applyTextPropertyUpdate` (multi-element aware) |
-| Save / load | `src/overlay/save.ts` | `saveScene`, `loadScene`, coordinate translation |
-| Overlay constants, utilities | `src/overlay/utils.ts` | `InteractionState`, angle math, keyboard guards |
-| Toolbar UI | `src/overlay/toolbar.ts` | Tool buttons, style panel toggle |
-| Style controls | `src/overlay/style-controls.ts` | Shape style panel (stroke, fill, roughness, etc.) |
-| Text style controls | `src/overlay/text-style-controls.ts` | Text-specific panel (font, size, align) |
-| Scene mutations | `src/overlay/scene-commands.ts` | `duplicateElement`, `moveElementLayer` (multi-element) |
-| Annotation data model | `src/drawing/types.ts` | Persisted element shape; preserve compatibility |
-| Element creation/normalization | `src/drawing/excalidraw-adapter.ts` | Use before constructing Excalidraw-like elements manually |
-| Excalidraw imports | `src/drawing/excalidraw.ts` | Facade for `@excalidraw/*`; keep direct package imports centralized |
-| Geometry, handles, bounds | `src/drawing/geometry.ts` | Local/absolute coordinate invariants matter |
-| SVG/rough/freehand rendering | `src/drawing/render.ts` | DOM/SVG helpers only; no Obsidian APIs |
-| Scene load compatibility | `src/drawing/scene.ts` | `normalizeScene` is the persisted-data gate |
-| Annotation storage | `src/persistence.ts`, `.annotation/<id>.json` | Frontmatter `annotation` stores generated ids; scene JSON lives outside notes |
-| Build/release wiring | `package.json`, `scripts/build.ts` | Root uses Bun; Excalidraw submodule uses Yarn |
-
-## CODE MAP
-
-| Symbol | Type | Location | Role |
-|--------|------|----------|------|
-| `AnnotationEditorOverlay` | class | `src/overlay.ts` | Editor overlay orchestrator; delegates to `overlay/` modules |
-| `OverlayTextEditor` | class | `src/overlay/text-editor.ts` | Inline text editor DOM lifecycle and commit/cancel |
-| `renderOverlayScene` | function | `src/overlay/rendering.ts` | SVG scene rendering from overlay state |
-| `AnnotationPlugin` | class | `src/main.ts` | Obsidian plugin entry, commands, events, persistence |
-| `AnnotationElement` | type | `src/drawing/types.ts` | Union for persisted annotation elements |
-| `AnnotationScene` | type | `src/drawing/types.ts` | Persisted scene container |
-| `createDraftElement` | function | `src/drawing/excalidraw-adapter.ts` | User-tool element factory |
-| `normalizeScene` | function | `src/drawing/scene.ts` | Defensive load/migration gate |
-| `elementBounds` | function | `src/drawing/geometry.ts` | Selection and hit-test geometry |
-| `containsPoint` | function | `src/drawing/hit-test.ts` | Pointer hit detection wrapper |
-| `findElementsInRect` | function | `src/overlay/hit-test.ts` | Marquee selection: elements within a rect |
-| `InteractionState` | type | `src/overlay/utils.ts` | Move/resize/rotate state (supports multi-element via `selectedIds`) |
+| Area | Location | Details |
+|------|----------|---------|
+| Plugin source | `src/` | See `src/AGENTS.md` for file-level guide |
+| Drawing domain | `src/drawing/` | See `src/drawing/AGENTS.md` |
+| Excalidraw submodule | `excalidraw/` | See `excalidraw/CLAUDE.md`, upstream docs |
 
 ## COMPONENT ARCHITECTURE
 
@@ -93,7 +54,14 @@ Selection is tracked as `selectedIds: Set<string>` (multi-element). Key interact
 - **Drag selected element**: move all selected elements together
 - **Arrow keys**: nudge selected elements (1px, or 10px with Shift)
 - **Delete/Backspace**: delete all selected elements
-- **Resize/rotate handles**: single-element only (shown when exactly one element selected)
+- **Single-element handles**: nw, ne, se, sw corners + rotation + n/s/e/w edges (all)
+- **Multi-element handles**: nw, ne, se, sw corners + rotation ONLY (no edge handles, matching Excalidraw)
+
+### Selection Borders (matching Excalidraw)
+- **Single element**: solid border
+- **Multi-element, not grouped**: solid individual borders + dashed bounding box
+- **Grouped elements**: no individual borders + dashed group border + dashed bounding box
+- Dashed style: `stroke-dasharray: 2 4`
 
 ## CONVENTIONS
 

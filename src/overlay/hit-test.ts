@@ -12,7 +12,8 @@ import {
 	resizeEdgeAtPoint,
 	selectionHandleCenter,
 	selectionHandlesForElement,
-	transformHandlesForElement
+	transformHandlesForElement,
+	SELECTION_PADDING
 } from '../drawing/geometry'
 import { normalizeElementGeometry } from '../drawing/scene'
 
@@ -65,6 +66,64 @@ export function findSelectionHandleAtPoint(
 	}
 
 	return resizeEdgeAtPoint(selected, point)
+}
+
+/** Hit-test handles on the multi-select bounding box (no rotation). */
+export function findMultiSelectionHandleAtPoint(
+	selectedElements: readonly AnnotationElement[],
+	point: AnnotationPoint
+): SelectionHandle | null {
+	if (selectedElements.length < 2) return null
+
+	const bounds = computeBounds(selectedElements)
+	if (!bounds) return null
+
+	const padding = SELECTION_PADDING
+	const bx = bounds.x - padding
+	const by = bounds.y - padding
+	const bw = bounds.width + padding * 2
+	const bh = bounds.height + padding * 2
+	const cx = bx + bw / 2
+	const cy = by + bh / 2
+
+	// Corner + rotation only (no edge handles), matching Excalidraw multi-select
+	const handles: SelectionHandle[] = ['nw', 'ne', 'se', 'sw', 'rotation']
+	for (const handle of handles) {
+		let hx: number
+		let hy: number
+		if (handle === 'rotation') {
+			hx = cx
+			hy = by - SELECTION_HANDLE_SIZE * 1.5
+		} else {
+			hx = handle.includes('w') ? bx : handle.includes('e') ? bx + bw : cx
+			hy = handle.includes('n') ? by : handle.includes('s') ? by + bh : cy
+		}
+		if (
+			Math.abs(point.x - hx) <= SELECTION_HANDLE_SIZE &&
+			Math.abs(point.y - hy) <= SELECTION_HANDLE_SIZE
+		) {
+			return handle
+		}
+	}
+
+	return null
+}
+
+function computeBounds(elements: readonly AnnotationElement[]): { x: number; y: number; width: number; height: number } | null {
+	let minX = Infinity
+	let minY = Infinity
+	let maxX = -Infinity
+	let maxY = -Infinity
+	for (const element of elements) {
+		const bounds = elementBounds(normalizeElementGeometry(element))
+		if (!bounds) continue
+		minX = Math.min(minX, bounds.x)
+		minY = Math.min(minY, bounds.y)
+		maxX = Math.max(maxX, bounds.x + bounds.width)
+		maxY = Math.max(maxY, bounds.y + bounds.height)
+	}
+	if (minX >= Infinity) return null
+	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 }
 
 export function findEventTextElement(

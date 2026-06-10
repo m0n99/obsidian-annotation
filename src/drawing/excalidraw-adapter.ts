@@ -232,14 +232,14 @@ export function normalizeElement(element: Record<string, unknown>): AnnotationEl
 		versionNonce: randomVersionNonce(),
 		index: null,
 		isDeleted: false,
-		groupIds: [],
 		frameId: null,
 		boundElements: null,
 		updated: Date.now(),
 		link: null,
 		locked: false,
 		customData: {},
-		...element
+		...element,
+		groupIds: Array.isArray(element.groupIds) ? element.groupIds : []
 	} as Record<string, unknown>
 
 	if (base.type === 'freedraw' || base.type === 'pen') {

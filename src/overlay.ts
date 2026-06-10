@@ -34,7 +34,11 @@ import {
 	getEditorOverlayMount,
 	sizeOverlayToDocumentPlane
 } from './editor-dom'
-import { duplicateElement, moveElementLayer, type LayerDirection } from './overlay/scene-commands'
+import { duplicateElement, moveElementLayer, type LayerDirection,
+	canGroupSelected, groupElements, canUngroupSelected, ungroupElements,
+	canAlignSelected, alignSelectedElements } from './overlay/scene-commands'
+import { expandSelectionToGroup } from './drawing/groups'
+import type { Alignment } from './drawing/align'
 import { renderOverlayToolbar } from './overlay/toolbar'
 import type { AnnotationData } from './persistence'
 import {
@@ -258,35 +262,46 @@ export class AnnotationEditorOverlay {
 
 	private renderToolbar() {
 		const primaryId = this.selectedIds.size === 1 ? [...this.selectedIds][0]! : null
+		const selectedElements = this.scene.elements.filter((e) => this.selectedIds.has(e.id))
+		const hasTextInSelection = selectedElements.some((e) => e.type === 'text')
+		const hasNonTextInSelection = selectedElements.some((e) => e.type !== 'text')
 		const selected = primaryId
 			? this.scene.elements.find((element) => element.id === primaryId)
 			: null
 		const isTextSel = selected !== null && selected !== undefined && selected.type === 'text'
 		const isTextTool = this.tool === 'text'
 
-		// Sync current text style from selected text element
-		if (isTextSel && selected.type === 'text') {
-			this.currentTextAlign = selected.textAlign ?? 'left'
-			this.currentFontSize = selected.fontSize ?? TEXT_MARKDOWN_DEFAULT_FONT_SIZE
-			this.currentFontFamily = selected.fontFamily ?? 1
+		// Sync current text style from first selected text element
+		if (hasTextInSelection) {
+			const firstText = selectedElements.find((e) => e.type === 'text')
+			if (firstText && firstText.type === 'text') {
+				this.currentTextAlign = firstText.textAlign ?? 'left'
+				this.currentFontSize = firstText.fontSize ?? TEXT_MARKDOWN_DEFAULT_FONT_SIZE
+				this.currentFontFamily = firstText.fontFamily ?? 1
+			}
 		}
 
-		// Show text style controls when tool is text or a text element is selected
-		const useTextStyle = isTextTool || isTextSel
+		// Show text style controls when tool is text or text element(s) are selected
+		const useTextStyle = isTextTool || hasTextInSelection
 		const textStyleState = useTextStyle
-			? isTextSel && selected.type === 'text'
-				? {
-						style: styleForElement(selected),
-						textAlign: selected.textAlign ?? 'left',
-						fontSize: selected.fontSize ?? TEXT_MARKDOWN_DEFAULT_FONT_SIZE,
-						fontFamily: selected.fontFamily ?? 1
+			? (() => {
+					// For mixed selection, derive text state from first text element + current style
+					const textEl = selectedElements.find((e) => e.type === 'text')
+					if (textEl && textEl.type === 'text') {
+						return {
+							style: styleForElement(textEl),
+							textAlign: textEl.textAlign ?? 'left',
+							fontSize: textEl.fontSize ?? TEXT_MARKDOWN_DEFAULT_FONT_SIZE,
+							fontFamily: textEl.fontFamily ?? 1
+						}
 					}
-				: {
+					return {
 						style: this.currentStyle,
 						textAlign: this.currentTextAlign,
 						fontSize: this.currentFontSize,
 						fontFamily: this.currentFontFamily
 					}
+				})()
 			: undefined
 
 		renderOverlayToolbar(
@@ -299,8 +314,13 @@ export class AnnotationEditorOverlay {
 				hasSelection: this.selectedIds.size > 0,
 				isTextSelection: isTextSel,
 				isTextTool,
+				hasTextInSelection,
+				hasNonTextInSelection,
 				textStyle: textStyleState,
-				stylePanelOpen: this.stylePanelOpen
+				stylePanelOpen: this.stylePanelOpen,
+				canGroup: canGroupSelected(this.scene, this.selectedIds),
+				canUngroup: canUngroupSelected(this.scene, this.selectedIds),
+				canAlign: canAlignSelected(this.scene, this.selectedIds)
 			},
 			{
 				selectTool: (tool) => {
@@ -361,6 +381,15 @@ export class AnnotationEditorOverlay {
 				toggleStylePanel: () => {
 					this.stylePanelOpen = !this.stylePanelOpen
 					this.renderToolbar()
+				},
+				groupSelected: () => {
+					this.groupSelected()
+				},
+				ungroupSelected: () => {
+					this.ungroupSelected()
+				},
+				alignSelected: (alignment: Alignment) => {
+					this.alignSelected(alignment)
 				}
 			}
 		)
@@ -408,6 +437,20 @@ export class AnnotationEditorOverlay {
 			return
 		}
 
+		// Group/Ungroup: Ctrl/Cmd+G / Ctrl/Cmd+Shift+G
+		if (this.selectedIds.size > 0 && this.handleGroupShortcut(event)) {
+			event.preventDefault()
+			event.stopPropagation()
+			return
+		}
+
+		// Align: Ctrl/Cmd+Shift+Arrow
+		if (this.selectedIds.size > 0 && this.handleAlignShortcut(event)) {
+			event.preventDefault()
+			event.stopPropagation()
+			return
+		}
+
 		if (this.selectedIds.size > 0 && this.handleArrowKey(event)) {
 			event.preventDefault()
 			event.stopPropagation()
@@ -440,6 +483,62 @@ export class AnnotationEditorOverlay {
 				ids.has(element.id) ? moveElement(element, dx, dy) : element
 			)
 		})
+		this.renderScene()
+	}
+
+	private handleGroupShortcut(event: KeyboardEvent): boolean {
+		const isMod = event.metaKey || event.ctrlKey
+		if (!isMod) return false
+		const key = event.key.toUpperCase()
+		if (key === 'G' && !event.shiftKey) {
+			this.groupSelected()
+			return true
+		}
+		if (key === 'G' && event.shiftKey) {
+			this.ungroupSelected()
+			return true
+		}
+		return false
+	}
+
+	private handleAlignShortcut(event: KeyboardEvent): boolean {
+		const isMod = event.metaKey || event.ctrlKey
+		if (!isMod || !event.shiftKey) return false
+		let alignment: Alignment | null = null
+		if (event.key === 'ArrowLeft') alignment = { position: 'start', axis: 'x' }
+		else if (event.key === 'ArrowRight') alignment = { position: 'end', axis: 'x' }
+		else if (event.key === 'ArrowUp') alignment = { position: 'start', axis: 'y' }
+		else if (event.key === 'ArrowDown') alignment = { position: 'end', axis: 'y' }
+		if (!alignment) return false
+		this.alignSelected(alignment)
+		return true
+	}
+
+	private groupSelected() {
+		if (!canGroupSelected(this.scene, this.selectedIds)) return
+		const result = groupElements(this.scene, this.selectedIds)
+		if (!result) return
+		this.commitSceneMutation(result.scene)
+		this.selectedIds = result.selectedIds
+		this.renderToolbar()
+		this.renderScene()
+	}
+
+	private ungroupSelected() {
+		if (!canUngroupSelected(this.scene, this.selectedIds)) return
+		const result = ungroupElements(this.scene, this.selectedIds)
+		if (!result) return
+		this.commitSceneMutation(result.scene)
+		this.selectedIds = result.selectedIds
+		this.renderToolbar()
+		this.renderScene()
+	}
+
+	private alignSelected(alignment: Alignment) {
+		if (!canAlignSelected(this.scene, this.selectedIds)) return
+		const nextScene = alignSelectedElements(this.scene, this.selectedIds, alignment)
+		if (!nextScene) return
+		this.commitSceneMutation(nextScene)
 		this.renderScene()
 	}
 
@@ -499,11 +598,21 @@ export class AnnotationEditorOverlay {
 							[...this.selectedIds].filter((id) => id !== hit.id)
 						)
 					} else {
-						this.selectedIds = new Set([...this.selectedIds, hit.id])
+						// Shift-click: expand to include group members
+						this.selectedIds = expandSelectionToGroup(
+							hit, this.selectedIds, this.scene.elements
+						)
 					}
 				} else {
 					if (!this.selectedIds.has(hit.id)) {
-						this.selectedIds = new Set([hit.id])
+						// Click: if element is in a group, select the whole group
+						if (hit.groupIds.length > 0) {
+							this.selectedIds = expandSelectionToGroup(
+								hit, new Set(), this.scene.elements
+							)
+						} else {
+							this.selectedIds = new Set([hit.id])
+						}
 					}
 				}
 
@@ -945,11 +1054,18 @@ export class AnnotationEditorOverlay {
 	}
 
 	private styleForOptionsPane(): Required<AnnotationStyle> {
-		const primaryId = this.selectedIds.size > 0 ? [...this.selectedIds][0]! : null
-		const selected = primaryId
-			? this.scene.elements.find((element) => element.id === primaryId)
-			: null
-		return selected ? styleForElement(selected) : this.currentStyle
+		if (this.selectedIds.size === 0) {
+			return this.currentStyle
+		}
+		const selectedElements = this.scene.elements.filter((e) => this.selectedIds.has(e.id))
+		if (selectedElements.length === 0) {
+			return this.currentStyle
+		}
+		if (selectedElements.length === 1) {
+			return styleForElement(selectedElements[0]!)
+		}
+		// Multi-selection: use first element's style as base
+		return styleForElement(selectedElements[0]!)
 	}
 
 	private applyOverlayStyleUpdate(style: Partial<Required<AnnotationStyle>>) {

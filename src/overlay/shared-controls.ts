@@ -103,12 +103,14 @@ export function renderButtonListFieldset(
 		icon: () => SVGSVGElement
 		title: string
 		action: () => void
+		hidden?: boolean
 	}>
 ) {
 	const fieldset = container.createEl('fieldset')
 	fieldset.createEl('legend', { text: legend })
 	const list = fieldset.createDiv({ cls: 'buttonList' })
 	for (const item of items) {
+		if (item.hidden) continue
 		const btn = list.createEl('button', {
 			type: 'button',
 			attr: { title: item.title, 'aria-label': item.title }

@@ -1,5 +1,12 @@
 import type { AnnotationElement, AnnotationScene } from '../drawing/types'
 import { createElementId } from '../drawing/scene'
+import {
+	allElementsInSameGroup,
+	groupSelectedElements,
+	ungroupSelectedElements,
+	getSelectedGroupIds as getActiveGroupIds
+} from '../drawing/groups'
+import { alignElements, type Alignment } from '../drawing/align'
 
 export type LayerDirection = 'front' | 'forward' | 'backward' | 'back'
 
@@ -90,5 +97,78 @@ function moveElementToIndex(
 	const elements = [...scene.elements]
 	const [element] = elements.splice(from, 1)
 	elements.splice(to, 0, element!)
+	return { elements }
+}
+
+// -- Group / Ungroup --------------------------------------------------------
+
+export function canGroupSelected(
+	scene: AnnotationScene,
+	selectedIds: ReadonlySet<string>
+): boolean {
+	return selectedIds.size >= 2 && !allElementsInSameGroup(selectedIds, scene.elements)
+}
+
+export function groupElements(
+	scene: AnnotationScene,
+	selectedIds: ReadonlySet<string>
+): { scene: AnnotationScene; selectedIds: Set<string> } | null {
+	if (!canGroupSelected(scene, selectedIds)) return null
+
+	const newGroupId = createElementId()
+	const elements = groupSelectedElements(scene.elements, selectedIds, newGroupId)
+	return {
+		scene: { elements },
+		selectedIds: new Set(selectedIds)
+	}
+}
+
+export function canUngroupSelected(
+	scene: AnnotationScene,
+	selectedIds: ReadonlySet<string>
+): boolean {
+	if (selectedIds.size === 0) return false
+	return getActiveGroupIds(selectedIds, scene.elements).length > 0
+}
+
+export function ungroupElements(
+	scene: AnnotationScene,
+	selectedIds: ReadonlySet<string>
+): { scene: AnnotationScene; selectedIds: Set<string> } | null {
+	if (!canUngroupSelected(scene, selectedIds)) return null
+
+	const elements = ungroupSelectedElements(scene.elements, selectedIds)
+	// After ungrouping, keep the same elements selected
+	return {
+		scene: { elements },
+		selectedIds: new Set(selectedIds)
+	}
+}
+
+// -- Align -------------------------------------------------------------------
+
+export function canAlignSelected(
+	scene: AnnotationScene,
+	selectedIds: ReadonlySet<string>
+): boolean {
+	if (selectedIds.size < 2) return false
+	// Need at least 2 logical units (groups or individual elements)
+	const selectedElements = scene.elements.filter((e) => selectedIds.has(e.id))
+	const activeGroupIds = getActiveGroupIds(selectedIds, scene.elements)
+	const groupedCount = activeGroupIds.reduce((count, gid) => {
+		return count + scene.elements.filter((e) => e.groupIds.includes(gid)).length
+	}, 0)
+	const ungroupedCount = selectedElements.length - groupedCount
+	const logicalUnits = activeGroupIds.length + ungroupedCount
+	return logicalUnits >= 2
+}
+
+export function alignSelectedElements(
+	scene: AnnotationScene,
+	selectedIds: ReadonlySet<string>,
+	alignment: Alignment
+): AnnotationScene | null {
+	const elements = alignElements(scene.elements, selectedIds, alignment)
+	if (!elements) return null
 	return { elements }
 }

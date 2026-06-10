@@ -9,8 +9,19 @@ import {
 	createLineIcon,
 	createRectangleIcon,
 	createSelectionIcon,
-	createTextIcon
+	createTextIcon,
+	createFontFamilyHandDrawnIcon,
+	createFontFamilyNormalIcon,
+	createFontFamilyCodeIcon,
+	createFontSizeSmallIcon,
+	createFontSizeMediumIcon,
+	createFontSizeLargeIcon,
+	createFontSizeExtraLargeIcon,
+	createTextAlignLeftIcon,
+	createTextAlignCenterIcon,
+	createTextAlignRightIcon
 } from '../drawing/icons'
+import type { Alignment } from '../drawing/align'
 import { renderStyleControls } from './style-controls'
 import {
 	renderTextStyleControls,
@@ -25,13 +36,21 @@ type OverlayToolbarState = {
 	hasSelection: boolean
 	isTextSelection: boolean
 	isTextTool: boolean
+	hasTextInSelection: boolean
+	hasNonTextInSelection: boolean
 	textStyle?: TextStyleControlsState
 	stylePanelOpen?: boolean
+	canGroup: boolean
+	canUngroup: boolean
+	canAlign: boolean
 }
 
 type OverlayToolbarCallbacks = {
 	selectTool(tool: AnnotationTool): void
 	toggleStylePanel(): void
+	groupSelected(): void
+	ungroupSelected(): void
+	alignSelected(alignment: Alignment): void
 }
 
 type ShapeStyleState = Parameters<typeof renderStyleControls>[1]
@@ -171,15 +190,28 @@ export function renderOverlayToolbar(
 
 	const styleEl = stylePanelEl.createDiv({ cls: 'annotation-style-controls' })
 
-	if (
-		(state.isTextTool || state.isTextSelection) &&
-		state.textStyle &&
-		callbacks.updateTextAlign &&
-		callbacks.updateFontSize
-	) {
+	// Determine what to show:
+	// - Text-only selection (or text tool) → text controls only
+	// - Mixed text + shapes → shape controls with text controls inline (before opacity)
+	// - Shapes only (or no text) → shape controls only
+	const isTextOnly = (state.isTextTool || state.isTextSelection) && !state.hasNonTextInSelection
+	const isMixed = state.hasTextInSelection && state.hasNonTextInSelection
+
+	if (isTextOnly && state.textStyle && callbacks.updateTextAlign && callbacks.updateFontSize) {
 		renderTextStyleControls(styleEl, state.textStyle, callbacks as TextCallbacks)
 	} else {
-		renderStyleControls(styleEl, state, callbacks)
+		renderStyleControls(styleEl, {
+			style: state.style,
+			hasSelection: state.hasSelection,
+			canGroup: state.canGroup,
+			canUngroup: state.canUngroup,
+			canAlign: state.canAlign,
+			textState: isMixed && state.textStyle ? {
+				fontSize: state.textStyle.fontSize,
+				fontFamily: state.textStyle.fontFamily,
+				textAlign: state.textStyle.textAlign
+			} : undefined
+		}, callbacks)
 	}
 }
 

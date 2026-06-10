@@ -1,5 +1,10 @@
 import { SVG_NS } from './types'
 
+let _clipIdCounter = 0
+function nextClipId(prefix: string): string {
+	return `${prefix}-${++_clipIdCounter}`
+}
+
 // --- Excalidraw-compatible SVG icon factories ---
 // These replicate the exact SVG output from Excalidraw's createIcon() function.
 // Two viewBox sizes are used, matching upstream:
@@ -1038,6 +1043,262 @@ export function createUnlockedIcon(): SVGSVGElement {
 	fillPath.setAttribute('fill', 'currentColor')
 	maskedGroup.appendChild(fillPath)
 	g.appendChild(maskedGroup)
+	svg.appendChild(g)
+	return svg
+}
+
+// --- Group / Ungroup icons ---
+
+export function createGroupIcon(): SVGSVGElement {
+	const svg = document.createElementNS(SVG_NS, 'svg')
+	svg.setAttribute('viewBox', '0 0 182 182')
+	svg.setAttribute('fill', 'none')
+	// Large rect (back)
+	const fillRect1 = document.createElementNS(SVG_NS, 'path')
+	fillRect1.setAttribute('d', 'M25 26H111V111H25')
+	fillRect1.setAttribute('fill', 'var(--icon-fill-color)')
+	svg.appendChild(fillRect1)
+	const strokeRect1 = document.createElementNS(SVG_NS, 'path')
+	strokeRect1.setAttribute('d', 'M25 111C25 80.2068 25 49.4135 25 26M25 26C48.6174 26 72.2348 26 111 26H25ZM25 26C53.3671 26 81.7343 26 111 26H25ZM111 26C111 52.303 111 78.606 111 111V26ZM111 26C111 51.2947 111 76.5893 111 111V26ZM111 111C87.0792 111 63.1585 111 25 111H111ZM111 111C87.4646 111 63.9293 111 25 111H111ZM25 111C25 81.1514 25 51.3028 25 26V111Z')
+	strokeRect1.setAttribute('stroke', 'var(--icon-fill-color)')
+	strokeRect1.setAttribute('stroke-width', '2')
+	svg.appendChild(strokeRect1)
+	// Small rect (front)
+	const fillRect2 = document.createElementNS(SVG_NS, 'path')
+	fillRect2.setAttribute('d', 'M100 100H160V160H100')
+	fillRect2.setAttribute('fill', 'var(--icon-fill-color)')
+	svg.appendChild(fillRect2)
+	const strokeRect2 = document.createElementNS(SVG_NS, 'path')
+	strokeRect2.setAttribute('d', 'M100 160C100 144.106 100 128.211 100 100M100 100C117.706 100 135.412 100 160 100H100ZM100 100C114.214 100 128.428 100 160 100H100ZM160 100C160 120.184 160 140.369 160 160V100ZM160 100C160 113.219 160 126.437 160 160V100ZM160 160C145.534 160 131.068 160 100 160H160ZM160 160C143.467 160 126.934 160 100 160H160ZM100 160C100 143.661 100 127.321 100 100V160Z')
+	strokeRect2.setAttribute('stroke', 'var(--icon-fill-color)')
+	strokeRect2.setAttribute('stroke-width', '2')
+	svg.appendChild(strokeRect2)
+	// Corner handles (fill=background, stroke=icon color, matching Excalidraw handlerColor)
+	const g = document.createElementNS(SVG_NS, 'g')
+	g.setAttribute('fill', 'var(--island-bg-color)')
+	g.setAttribute('stroke', 'var(--icon-fill-color)')
+	g.setAttribute('stroke-width', '6')
+	for (const [x, y] of [[2.5, 2.5], [2.5, 149.5], [147.5, 149.5], [147.5, 2.5]]) {
+		const rect = document.createElementNS(SVG_NS, 'rect')
+		rect.setAttribute('x', String(x))
+		rect.setAttribute('y', String(y))
+		rect.setAttribute('width', '30')
+		rect.setAttribute('height', '30')
+		g.appendChild(rect)
+	}
+	svg.appendChild(g)
+	return svg
+}
+
+export function createUngroupIcon(): SVGSVGElement {
+	const svg = document.createElementNS(SVG_NS, 'svg')
+	svg.setAttribute('viewBox', '0 0 182 182')
+	svg.setAttribute('fill', 'none')
+	// Large rect (back)
+	const fillRect1 = document.createElementNS(SVG_NS, 'path')
+	fillRect1.setAttribute('d', 'M25 26H111V111H25')
+	fillRect1.setAttribute('fill', 'var(--icon-fill-color)')
+	svg.appendChild(fillRect1)
+	const strokeRect1 = document.createElementNS(SVG_NS, 'path')
+	strokeRect1.setAttribute('d', 'M25 111C25 80.2068 25 49.4135 25 26M25 26C48.6174 26 72.2348 26 111 26H25ZM25 26C53.3671 26 81.7343 26 111 26H25ZM111 26C111 52.303 111 78.606 111 111V26ZM111 26C111 51.2947 111 76.5893 111 111V26ZM111 111C87.0792 111 63.1585 111 25 111H111ZM111 111C87.4646 111 63.9293 111 25 111H111ZM25 111C25 81.1514 25 51.3028 25 26V111Z')
+	strokeRect1.setAttribute('stroke', 'var(--icon-fill-color)')
+	strokeRect1.setAttribute('stroke-width', '2')
+	svg.appendChild(strokeRect1)
+	// Small rect (front)
+	const fillRect2 = document.createElementNS(SVG_NS, 'path')
+	fillRect2.setAttribute('d', 'M100 100H160V160H100')
+	fillRect2.setAttribute('fill', 'var(--icon-fill-color)')
+	svg.appendChild(fillRect2)
+	const strokeRect2 = document.createElementNS(SVG_NS, 'path')
+	strokeRect2.setAttribute('d', 'M100 160C100 144.106 100 128.211 100 100M100 100C117.706 100 135.412 100 160 100H100ZM100 100C114.214 100 128.428 100 160 100H100ZM160 100C160 120.184 160 140.369 160 160V100ZM160 100C160 113.219 160 126.437 160 160V100ZM160 160C145.534 160 131.068 160 100 160H160ZM160 160C143.467 160 126.934 160 100 160H160ZM100 160C100 143.661 100 127.321 100 100V160Z')
+	strokeRect2.setAttribute('stroke', 'var(--icon-fill-color)')
+	strokeRect2.setAttribute('stroke-width', '2')
+	svg.appendChild(strokeRect2)
+	// Scattered handles (fill=background, stroke=icon color, matching Excalidraw handlerColor)
+	const g = document.createElementNS(SVG_NS, 'g')
+	g.setAttribute('fill', 'var(--island-bg-color)')
+	g.setAttribute('stroke', 'var(--icon-fill-color)')
+	g.setAttribute('stroke-width', '6')
+	for (const [x, y] of [[2.5, 2.5], [78.5, 149.5], [147.5, 149.5], [147.5, 78.5], [105.5, 2.5], [2.5, 102.5]]) {
+		const rect = document.createElementNS(SVG_NS, 'rect')
+		rect.setAttribute('x', String(x))
+		rect.setAttribute('y', String(y))
+		rect.setAttribute('width', '30')
+		rect.setAttribute('height', '30')
+		g.appendChild(rect)
+	}
+	svg.appendChild(g)
+	return svg
+}
+
+// --- Align icons (from Excalidraw: 20×20 viewBox, clipPath-based) ---
+
+export function createAlignTopIcon(): SVGSVGElement {
+	const svg = document.createElementNS(SVG_NS, 'svg')
+	setModifiedTablerRoot(svg)
+	const clipId = nextClipId('clip-at')
+	const clipPath = document.createElementNS(SVG_NS, 'clipPath')
+	clipPath.setAttribute('id', clipId)
+	const clipRect = document.createElementNS(SVG_NS, 'path')
+	clipRect.setAttribute('fill', '#fff')
+	clipRect.setAttribute('d', 'M0 0h20v20H0z')
+	clipPath.appendChild(clipRect)
+	const defs = document.createElementNS(SVG_NS, 'defs')
+	defs.appendChild(clipPath)
+	svg.appendChild(defs)
+	const g = document.createElementNS(SVG_NS, 'g')
+	g.setAttribute('clip-path', `url(#${clipId})`)
+	g.setAttribute('stroke', 'currentColor')
+	g.setAttribute('stroke-width', '1.25')
+	const line = document.createElementNS(SVG_NS, 'path')
+	line.setAttribute('d', 'M3.333 3.333h13.334')
+	line.setAttribute('stroke-linecap', 'round')
+	line.setAttribute('stroke-linejoin', 'round')
+	g.appendChild(line)
+	const rects = document.createElementNS(SVG_NS, 'path')
+	rects.setAttribute('d', 'M13.542 6.458h-.417c-.92 0-1.667.747-1.667 1.667v7.083c0 .92.746 1.667 1.667 1.667h.417c.92 0 1.666-.746 1.666-1.667V8.125c0-.92-.746-1.667-1.666-1.667ZM6.875 6.458h-.417c-.92 0-1.666.747-1.666 1.667v3.75c0 .92.746 1.667 1.666 1.667h.417c.92 0 1.667-.746 1.667-1.667v-3.75c0-.92-.747-1.667-1.667-1.667Z')
+	g.appendChild(rects)
+	svg.appendChild(g)
+	return svg
+}
+
+export function createAlignBottomIcon(): SVGSVGElement {
+	const svg = document.createElementNS(SVG_NS, 'svg')
+	setModifiedTablerRoot(svg)
+	const clipId = nextClipId('clip-ab')
+	const clipPath = document.createElementNS(SVG_NS, 'clipPath')
+	clipPath.setAttribute('id', clipId)
+	const clipRect = document.createElementNS(SVG_NS, 'path')
+	clipRect.setAttribute('fill', '#fff')
+	clipRect.setAttribute('d', 'M0 0h20v20H0z')
+	clipPath.appendChild(clipRect)
+	const defs = document.createElementNS(SVG_NS, 'defs')
+	defs.appendChild(clipPath)
+	svg.appendChild(defs)
+	const g = document.createElementNS(SVG_NS, 'g')
+	g.setAttribute('clip-path', `url(#${clipId})`)
+	g.setAttribute('stroke', 'currentColor')
+	g.setAttribute('stroke-width', '1.25')
+	const line = document.createElementNS(SVG_NS, 'path')
+	line.setAttribute('d', 'M3.333 16.667h13.334')
+	line.setAttribute('stroke-linecap', 'round')
+	line.setAttribute('stroke-linejoin', 'round')
+	g.appendChild(line)
+	const rects = document.createElementNS(SVG_NS, 'path')
+	rects.setAttribute('d', 'M6.875 3.125h-.417c-.92 0-1.666.746-1.666 1.667v7.083c0 .92.746 1.667 1.666 1.667h.417c.92 0 1.667-.746 1.667-1.667V4.792c0-.92-.747-1.667-1.667-1.667ZM13.542 5.817h-.417c-.92 0-1.667.747-1.667 1.667v4.391c0 .92.746 1.667 1.667 1.667h.417c.92 0 1.666-.746 1.666-1.667V7.484c0-.92-.746-1.667-1.666-1.667Z')
+	g.appendChild(rects)
+	svg.appendChild(g)
+	return svg
+}
+
+export function createAlignLeftIcon(): SVGSVGElement {
+	const svg = document.createElementNS(SVG_NS, 'svg')
+	setModifiedTablerRoot(svg)
+	const clipId = nextClipId('clip-al')
+	const clipPath = document.createElementNS(SVG_NS, 'clipPath')
+	clipPath.setAttribute('id', clipId)
+	const clipRect = document.createElementNS(SVG_NS, 'path')
+	clipRect.setAttribute('fill', '#fff')
+	clipRect.setAttribute('d', 'M0 0h20v20H0z')
+	clipPath.appendChild(clipRect)
+	const defs = document.createElementNS(SVG_NS, 'defs')
+	defs.appendChild(clipPath)
+	svg.appendChild(defs)
+	const g = document.createElementNS(SVG_NS, 'g')
+	g.setAttribute('clip-path', `url(#${clipId})`)
+	g.setAttribute('stroke', 'currentColor')
+	g.setAttribute('stroke-width', '1.25')
+	const line = document.createElementNS(SVG_NS, 'path')
+	line.setAttribute('d', 'M3.333 3.333v13.334')
+	line.setAttribute('stroke-linecap', 'round')
+	line.setAttribute('stroke-linejoin', 'round')
+	g.appendChild(line)
+	const rects = document.createElementNS(SVG_NS, 'path')
+	rects.setAttribute('d', 'M15.208 4.792H8.125c-.92 0-1.667.746-1.667 1.666v.417c0 .92.747 1.667 1.667 1.667h7.083c.92 0 1.667-.747 1.667-1.667v-.417c0-.92-.746-1.666-1.667-1.666ZM12.516 11.458H8.125c-.92 0-1.667.746-1.667 1.667v.417c0 .92.747 1.666 1.667 1.666h4.391c.92 0 1.667-.746 1.667-1.666v-.417c0-.92-.746-1.667-1.667-1.667Z')
+	g.appendChild(rects)
+	svg.appendChild(g)
+	return svg
+}
+
+export function createAlignRightIcon(): SVGSVGElement {
+	const svg = document.createElementNS(SVG_NS, 'svg')
+	setModifiedTablerRoot(svg)
+	const clipId = nextClipId('clip-ar')
+	const clipPath = document.createElementNS(SVG_NS, 'clipPath')
+	clipPath.setAttribute('id', clipId)
+	const clipRect = document.createElementNS(SVG_NS, 'path')
+	clipRect.setAttribute('fill', '#fff')
+	clipRect.setAttribute('d', 'M0 0h20v20H0z')
+	clipPath.appendChild(clipRect)
+	const defs = document.createElementNS(SVG_NS, 'defs')
+	defs.appendChild(clipPath)
+	svg.appendChild(defs)
+	const g = document.createElementNS(SVG_NS, 'g')
+	g.setAttribute('clip-path', `url(#${clipId})`)
+	g.setAttribute('stroke', 'currentColor')
+	g.setAttribute('stroke-width', '1.25')
+	const line = document.createElementNS(SVG_NS, 'path')
+	line.setAttribute('d', 'M16.667 3.333v13.334')
+	line.setAttribute('stroke-linecap', 'round')
+	line.setAttribute('stroke-linejoin', 'round')
+	g.appendChild(line)
+	const rects = document.createElementNS(SVG_NS, 'path')
+	rects.setAttribute('d', 'M11.875 4.792H4.792c-.92 0-1.667.746-1.667 1.666v.417c0 .92.746 1.667 1.667 1.667h7.083c.92 0 1.667-.747 1.667-1.667v-.417c0-.92-.746-1.666-1.667-1.666ZM11.683 11.458H7.292c-.92 0-1.667.746-1.667 1.667v.417c0 .92.746 1.666 1.667 1.666h4.39c.921 0 1.667-.746 1.667-1.666v-.417c0-.92-.746-1.667-1.666-1.667Z')
+	g.appendChild(rects)
+	svg.appendChild(g)
+	return svg
+}
+
+export function createAlignCenterHIcon(): SVGSVGElement {
+	const svg = document.createElementNS(SVG_NS, 'svg')
+	setModifiedTablerRoot(svg)
+	const g = document.createElementNS(SVG_NS, 'g')
+	g.setAttribute('stroke', 'currentColor')
+	g.setAttribute('stroke-width', '1.25')
+	const line1 = document.createElementNS(SVG_NS, 'path')
+	line1.setAttribute('d', 'M10 18.333v-2.916')
+	line1.setAttribute('stroke-linecap', 'round')
+	line1.setAttribute('stroke-linejoin', 'round')
+	g.appendChild(line1)
+	const line2 = document.createElementNS(SVG_NS, 'path')
+	line2.setAttribute('d', 'M10 11.667V8.333')
+	line2.setAttribute('stroke-linejoin', 'round')
+	g.appendChild(line2)
+	const line3 = document.createElementNS(SVG_NS, 'path')
+	line3.setAttribute('d', 'M10 4.583V1.667')
+	line3.setAttribute('stroke-linecap', 'round')
+	line3.setAttribute('stroke-linejoin', 'round')
+	g.appendChild(line3)
+	const rects = document.createElementNS(SVG_NS, 'path')
+	rects.setAttribute('d', 'M4.792 13.125v.417c0 .92.746 1.666 1.666 1.666h7.084c.92 0 1.666-.746 1.666-1.666v-.417c0-.92-.746-1.667-1.666-1.667H6.458c-.92 0-1.666.746-1.666 1.667ZM6.458 6.458v.417c0 .92.747 1.667 1.667 1.667h3.75c.92 0 1.667-.747 1.667-1.667v-.417c0-.92-.746-1.666-1.667-1.666h-3.75c-.92 0-1.667.746-1.667 1.666Z')
+	g.appendChild(rects)
+	svg.appendChild(g)
+	return svg
+}
+
+export function createAlignCenterVIcon(): SVGSVGElement {
+	const svg = document.createElementNS(SVG_NS, 'svg')
+	setModifiedTablerRoot(svg)
+	const g = document.createElementNS(SVG_NS, 'g')
+	g.setAttribute('stroke', 'currentColor')
+	g.setAttribute('stroke-width', '1.25')
+	const line1 = document.createElementNS(SVG_NS, 'path')
+	line1.setAttribute('d', 'M1.667 10h2.916')
+	line1.setAttribute('stroke-linecap', 'round')
+	line1.setAttribute('stroke-linejoin', 'round')
+	g.appendChild(line1)
+	const line2 = document.createElementNS(SVG_NS, 'path')
+	line2.setAttribute('d', 'M8.333 10h3.334')
+	line2.setAttribute('stroke-linejoin', 'round')
+	g.appendChild(line2)
+	const line3 = document.createElementNS(SVG_NS, 'path')
+	line3.setAttribute('d', 'M15.417 10h2.916')
+	line3.setAttribute('stroke-linecap', 'round')
+	line3.setAttribute('stroke-linejoin', 'round')
+	g.appendChild(line3)
+	const rects = document.createElementNS(SVG_NS, 'path')
+	rects.setAttribute('d', 'M6.875 4.792h-.417c-.92 0-1.666.746-1.666 1.666v7.084c0 .92.746 1.666 1.666 1.666h.417c.92 0 1.667-.746 1.667-1.666V6.458c0-.92-.747-1.666-1.667-1.666ZM13.542 6.458h-.417c-.92 0-1.667.747-1.667 1.667v3.75c0 .92.746 1.667 1.667 1.667h.417c.92 0 1.666-.746 1.666-1.667v-3.75c0-.92-.746-1.667-1.666-1.667Z')
+	g.appendChild(rects)
 	svg.appendChild(g)
 	return svg
 }

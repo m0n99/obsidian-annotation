@@ -794,6 +794,7 @@ export class AnnotationEditorOverlay {
 			const rect = marqueeToRect(this.marquee.start, this.marquee.end)
 			const elements = findElementsInRect(this.scene, rect)
 			this.selectedIds = new Set(elements.map((e) => e.id))
+			this.renderToolbar()
 			this.renderScene()
 			return
 		}

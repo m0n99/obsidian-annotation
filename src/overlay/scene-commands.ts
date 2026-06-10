@@ -6,7 +6,7 @@ import {
 	ungroupSelectedElements,
 	getSelectedGroupIds as getActiveGroupIds
 } from '../drawing/groups'
-import { alignElements, type Alignment } from '../drawing/align'
+import { alignElements, getSelectedElementsByGroup, type Alignment } from '../drawing/align'
 
 export type LayerDirection = 'front' | 'forward' | 'backward' | 'back'
 
@@ -152,15 +152,12 @@ export function canAlignSelected(
 	selectedIds: ReadonlySet<string>
 ): boolean {
 	if (selectedIds.size < 2) return false
-	// Need at least 2 logical units (groups or individual elements)
 	const selectedElements = scene.elements.filter((e) => selectedIds.has(e.id))
-	const activeGroupIds = getActiveGroupIds(selectedIds, scene.elements)
-	const groupedCount = activeGroupIds.reduce((count, gid) => {
-		return count + scene.elements.filter((e) => e.groupIds.includes(gid)).length
-	}, 0)
-	const ungroupedCount = selectedElements.length - groupedCount
-	const logicalUnits = activeGroupIds.length + ungroupedCount
-	return logicalUnits >= 2
+	if (selectedElements.length < 2) return false
+	// Use the same grouping logic as alignElements to determine logical units.
+	// A single flat group splits into individual elements (Excalidraw behavior).
+	const groups = getSelectedElementsByGroup(selectedElements, scene.elements, selectedIds)
+	return groups.length >= 2
 }
 
 export function alignSelectedElements(

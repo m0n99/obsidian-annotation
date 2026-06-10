@@ -40,7 +40,7 @@ function calculateTranslation(
 
 /** Get selected elements grouped by their group, or as individual elements if ungrouped.
  *  Returns an array of groups (each group is an array of elements). */
-function getSelectedElementsByGroup(
+export function getSelectedElementsByGroup(
 	selectedElements: readonly AnnotationElement[],
 	allElements: readonly AnnotationElement[],
 	selectedIds: ReadonlySet<string>

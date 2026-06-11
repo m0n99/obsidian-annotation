@@ -27,8 +27,15 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Yarn 1
-        run: npm install -g yarn@1
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+
+      - name: Configure Yarn for Excalidraw
+        working-directory: excalidraw
+        run: |
+          yarn config set strict-ssl false
 
       - name: Validate tag format
         run: |

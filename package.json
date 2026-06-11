@@ -8,7 +8,7 @@
 	"scripts": {
 		"dev": "bun scripts/build.ts",
 		"build": "bun run tsc && bun scripts/build.ts --prod",
-		"build:excalidraw": "yarn --cwd ./excalidraw install --frozen-lockfile && yarn --cwd ./excalidraw build:packages && yarn --cwd ./excalidraw/packages/utils build:esm",
+		"build:excalidraw": "cd excalidraw && yarn install --frozen-lockfile && yarn build:packages && cd packages/utils && yarn build:esm",
 		"build:with-excalidraw": "bun run build:excalidraw && bun run build",
 		"tsc": "tsc --noEmit",
 		"tsc:watch": "tsc --noEmit --watch --preserveWatchOutput",

@@ -1,0 +1,76 @@
+name: Release Obsidian plugin
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Yarn 1
+        run: npm install -g yarn@1
+
+      - name: Validate tag format
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          if ! [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must be SemVer without a leading v, for example: 1.0.0"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Excalidraw packages
+        run: bun run build:excalidraw
+
+      - name: Build plugin
+        run: bun run build
+
+      - name: Verify release version
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          manifest_version="$(bun -e 'const m = await Bun.file("dist/manifest.json").json(); console.log(m.version)')"
+          if [ "$tag" != "$manifest_version" ]; then
+            echo "Tag ($tag) must match dist/manifest.json version ($manifest_version)."
+            exit 1
+          fi
+
+      - name: Package manual install zip
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          cd dist
+          zip -r "../annotation-$tag.zip" .
+
+      - name: Create draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          gh release create "$tag" \
+            --title "$tag" \
+            --draft \
+            dist/main.js \
+            dist/manifest.json \
+            dist/styles.css \
+            "annotation-$tag.zip"

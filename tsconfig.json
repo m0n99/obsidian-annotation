@@ -23,6 +23,6 @@
 		"useUnknownInCatchVariables": true,
 		"lib": ["DOM", "ESNext"]
 	},
-	"include": ["src/**/*.ts", "scripts/**/*.ts", "commitlint.config.ts"],
+	"include": ["src/**/*.ts", "scripts/**/*.ts"],
 	"exclude": ["node_modules", "dist", "excalidraw"]
 }
